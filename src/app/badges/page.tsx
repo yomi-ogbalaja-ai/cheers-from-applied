@@ -27,14 +27,11 @@ const BADGE_META: Record<string, { icon: string; color: string; label: string }>
 };
 
 const AVATAR_COLORS = [
-  "bg-indigo-500", "bg-pink-500", "bg-violet-500", "bg-sky-500",
-  "bg-emerald-500", "bg-amber-500", "bg-rose-500", "bg-teal-500",
+  "#1557FF", "#0A3FD4", "#2E74FF", "#0D47C9",
+  "#1040B0", "#3B8BFF", "#0A2E99", "#1E5FE8",
 ];
 
-const STRIP_COLORS = [
-  "bg-indigo-400", "bg-pink-400", "bg-violet-400", "bg-sky-400",
-  "bg-emerald-400", "bg-amber-400", "bg-rose-400", "bg-teal-400",
-];
+const STRIP_COLORS = AVATAR_COLORS;
 
 function getInitials(name: string) {
   return name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
@@ -67,21 +64,21 @@ export default function BadgesPage() {
   const uniqueEarners = groups ? groups.length : 0;
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen" style={{ background: "var(--bg)" }}>
       {/* Hero */}
-      <div className="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-500 text-white py-14 px-6">
+      <div className="text-white py-14 px-6" style={{ background: "var(--navy)" }}>
         <div className="max-w-5xl mx-auto text-center">
           <div className="text-5xl mb-3">🏅</div>
           <h1 className="text-4xl font-bold mb-2">Badge Showcase</h1>
-          <p className="text-lg text-indigo-100 mb-8">Celebrating the people who show up for each other</p>
+          <p className="text-lg mb-8" style={{ color: "#93B4FF" }}>Celebrating the people who show up for each other</p>
           <div className="flex justify-center gap-12">
             <div>
               <div className="text-3xl font-bold">{groups === null ? "—" : totalBadges}</div>
-              <div className="text-indigo-200 text-sm mt-1">Total Badges</div>
+              <div className="text-sm mt-1" style={{ color: "#93B4FF" }}>Total Badges</div>
             </div>
             <div>
               <div className="text-3xl font-bold">{groups === null ? "—" : uniqueEarners}</div>
-              <div className="text-indigo-200 text-sm mt-1">Unique Earners</div>
+              <div className="text-sm mt-1" style={{ color: "#93B4FF" }}>Unique Earners</div>
             </div>
           </div>
         </div>
@@ -114,8 +111,9 @@ export default function BadgesPage() {
         {groups !== null && groups.length === 0 && (
           <div className="text-center py-24">
             <div className="text-5xl mb-4">🎖️</div>
-            <p className="text-gray-500 text-lg mb-4">No badges yet — start celebrating!</p>
-            <Link href="/" className="inline-block bg-indigo-600 text-white px-6 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors">
+            <p className="text-lg mb-4" style={{ color: "var(--muted)" }}>No badges yet — start celebrating!</p>
+            <Link href="/" className="inline-block text-white px-6 py-2 rounded-lg text-sm font-medium"
+              style={{ background: "var(--accent)" }}>
               Go to Homepage
             </Link>
           </div>
@@ -126,19 +124,22 @@ export default function BadgesPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {groups.map((g) => {
               const ci = colorIdx(g.person_email);
+              const color = AVATAR_COLORS[ci];
               return (
-                <div key={g.person_email} className="bg-white rounded-xl shadow-sm overflow-hidden flex flex-col">
-                  <div className={`h-2 ${STRIP_COLORS[ci]}`} />
+                <div key={g.person_email} className="bg-white rounded-xl shadow-sm overflow-hidden flex flex-col" style={{ border: "1px solid var(--border)" }}>
+                  <div className="h-1.5" style={{ background: color }} />
                   <div className="p-5 flex flex-col gap-4 flex-1">
                     <div className="flex items-center gap-3">
-                      <div className={`w-11 h-11 rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0 ${AVATAR_COLORS[ci]}`}>
+                      <div className="w-11 h-11 rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0"
+                        style={{ background: color }}>
                         {getInitials(g.person_name)}
                       </div>
                       <div className="min-w-0">
-                        <div className="font-semibold text-gray-800 truncate">{g.person_name}</div>
-                        <div className="text-xs text-gray-400 truncate">{g.person_email}</div>
+                        <div className="font-semibold truncate" style={{ color: "var(--text)" }}>{g.person_name}</div>
+                        <div className="text-xs truncate" style={{ color: "var(--muted)" }}>{g.person_email}</div>
                       </div>
-                      <span className="ml-auto text-xs bg-gray-100 text-gray-500 rounded-full px-2 py-0.5 font-medium flex-shrink-0">
+                      <span className="ml-auto text-xs rounded-full px-2 py-0.5 font-medium flex-shrink-0"
+                        style={{ background: "var(--accent-light)", color: "var(--accent)" }}>
                         {g.badges.length} badge{g.badges.length !== 1 ? "s" : ""}
                       </span>
                     </div>
@@ -151,8 +152,8 @@ export default function BadgesPage() {
                               {meta.icon} {meta.label}
                             </span>
                             <div className="min-w-0">
-                              {b.reason && <p className="text-sm text-gray-600 leading-snug truncate">{b.reason}</p>}
-                              <p className="text-xs text-gray-400">{fmtDate(b.awarded_at)}</p>
+                              {b.reason && <p className="text-sm leading-snug truncate" style={{ color: "var(--text)" }}>{b.reason}</p>}
+                              <p className="text-xs" style={{ color: "var(--muted)" }}>{fmtDate(b.awarded_at)}</p>
                             </div>
                           </li>
                         );

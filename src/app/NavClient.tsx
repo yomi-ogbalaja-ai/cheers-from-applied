@@ -19,21 +19,16 @@ export default function NavClient() {
     href === "/" ? pathname === "/" : pathname.startsWith(href);
 
   return (
-    <nav className="sticky top-0 z-50 w-full border-b border-gray-100 bg-white shadow-sm">
+    <nav className="sticky top-0 z-50 w-full border-b bg-white shadow-sm" style={{ borderColor: "var(--border)" }}>
       <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3">
         {/* Logo */}
-        <Link href="/" className="flex items-center gap-2 shrink-0">
-          <span className="text-xl">🎉</span>
-          <span
-            className="font-bold text-lg"
-            style={{
-              background: "linear-gradient(to right, #4f46e5, #ec4899)",
-              WebkitBackgroundClip: "text",
-              WebkitTextFillColor: "transparent",
-              backgroundClip: "text",
-            }}
-          >
-            Cheers from Applied
+        <Link href="/" className="flex items-center gap-2.5 shrink-0">
+          <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-sm font-bold"
+            style={{ background: "var(--accent)" }}>
+            A
+          </div>
+          <span className="font-bold text-lg" style={{ color: "var(--navy)" }}>
+            Cheers <span style={{ color: "var(--accent)" }}>from Applied</span>
           </span>
         </Link>
 
@@ -43,11 +38,8 @@ export default function NavClient() {
             <Link
               key={link.href}
               href={link.href}
-              className={
-                isActive(link.href)
-                  ? "text-indigo-600 font-semibold text-sm"
-                  : "text-gray-600 hover:text-indigo-600 text-sm transition-colors"
-              }
+              className="text-sm font-medium transition-colors"
+              style={{ color: isActive(link.href) ? "var(--accent)" : "var(--muted)" }}
             >
               {link.label}
             </Link>
@@ -59,9 +51,7 @@ export default function NavClient() {
           <Link
             href="/board/new"
             className="rounded-full px-4 py-2 text-sm font-semibold text-white shadow-sm transition-opacity hover:opacity-90"
-            style={{
-              background: "linear-gradient(to right, #4f46e5, #ec4899)",
-            }}
+            style={{ background: "var(--accent)" }}
           >
             + New Cheer
           </Link>
@@ -69,7 +59,8 @@ export default function NavClient() {
 
         {/* Mobile hamburger */}
         <button
-          className="md:hidden text-gray-600 hover:text-indigo-600 text-2xl leading-none"
+          className="md:hidden text-2xl leading-none"
+          style={{ color: "var(--muted)" }}
           onClick={() => setMenuOpen((o) => !o)}
           aria-label="Toggle menu"
         >
@@ -79,17 +70,14 @@ export default function NavClient() {
 
       {/* Mobile dropdown */}
       {menuOpen && (
-        <div className="md:hidden border-t border-gray-100 bg-white px-4 py-3 flex flex-col gap-3">
+        <div className="md:hidden border-t bg-white px-4 py-3 flex flex-col gap-3" style={{ borderColor: "var(--border)" }}>
           {navLinks.map((link) => (
             <Link
               key={link.href}
               href={link.href}
               onClick={() => setMenuOpen(false)}
-              className={
-                isActive(link.href)
-                  ? "block w-full text-indigo-600 font-semibold text-sm py-2"
-                  : "block w-full text-gray-600 hover:text-indigo-600 text-sm py-2 transition-colors"
-              }
+              className="block w-full text-sm py-2 font-medium"
+              style={{ color: isActive(link.href) ? "var(--accent)" : "var(--muted)" }}
             >
               {link.label}
             </Link>
@@ -97,17 +85,8 @@ export default function NavClient() {
           <Link
             href="/board/new"
             onClick={() => setMenuOpen(false)}
-            className="block w-full text-gray-600 hover:text-indigo-600 text-sm py-2 transition-colors"
-          >
-            Create Board
-          </Link>
-          <Link
-            href="/board/new"
-            onClick={() => setMenuOpen(false)}
             className="block w-full rounded-full px-4 py-2 text-sm font-semibold text-white text-center shadow-sm"
-            style={{
-              background: "linear-gradient(to right, #4f46e5, #ec4899)",
-            }}
+            style={{ background: "var(--accent)" }}
           >
             + New Cheer
           </Link>

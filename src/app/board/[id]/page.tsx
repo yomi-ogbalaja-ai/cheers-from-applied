@@ -30,6 +30,11 @@ interface Badge {
 // ─── Constants ───────────────────────────────────────────────────────────────
 const EXPECTED_TEAM = ["Ali Chen","Bree Santos","Carlos Diaz","Dani Park","Erin Walsh","Femi Okafor","Grace Liu","Hana Morita"];
 
+const TYPE_EMOJI: Record<string, string> = {
+  birthday: "🎂", wedding: "💍", new_baby: "👶", work_anniversary: "🥂",
+  promotion: "🚀", get_well: "💐", new_hire: "👋", personal_achievement: "🌟",
+};
+
 const GIF_SETS: Record<string, string[]> = {
   birthday: [
     "https://media.giphy.com/media/g5R9dok94mrIvplmZd/giphy.gif",
@@ -214,15 +219,15 @@ function fmtDate(s: string) {
   return new Date(s).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
-// ─── Post Tile ────────────────────────────────────────────────────────────────
+// ─── Post Tile (full, used in wall view + receiver view) ─────────────────────
 function PostTile({ post }: { post: Post }) {
   if (post.is_manager_note) {
     return (
       <div className="relative rounded-2xl p-5 text-white break-inside-avoid mb-4"
-        style={{ background: "linear-gradient(135deg,#6366f1,#ec4899)" }}>
+        style={{ background: "linear-gradient(135deg,#060E27,#1557FF)" }}>
         <span className="absolute top-3 right-3 text-lg">📌</span>
         <div className="flex items-center gap-2 mb-3">
-          <Avatar name={post.author_name} color="rgba(255,255,255,0.3)" size={8} />
+          <Avatar name={post.author_name} color="rgba(255,255,255,0.25)" size={8} />
           <div>
             <p className="font-semibold text-sm">{post.author_name}</p>
             <p className="text-xs opacity-70">Manager note</p>
@@ -235,11 +240,11 @@ function PostTile({ post }: { post: Post }) {
   }
   if (post.photo_url) {
     return (
-      <div className="rounded-2xl overflow-hidden bg-white shadow-sm break-inside-avoid mb-4">
+      <div className="rounded-2xl overflow-hidden bg-white shadow-sm break-inside-avoid mb-4" style={{ border: "1px solid var(--border)" }}>
         <img src={post.photo_url} alt="Post photo" className="w-full object-cover max-h-64" />
         <div className="flex items-center gap-2 p-3">
           <Avatar name={post.author_name} color={post.author_avatar_color} size={7} />
-          <p className="text-sm font-medium text-gray-700">{post.author_name}</p>
+          <p className="text-sm font-medium" style={{ color: "var(--text)" }}>{post.author_name}</p>
           {post.reaction && <span className="ml-auto text-lg">{post.reaction}</span>}
         </div>
       </div>
@@ -247,11 +252,11 @@ function PostTile({ post }: { post: Post }) {
   }
   if (post.gif_url) {
     return (
-      <div className="rounded-2xl overflow-hidden bg-white shadow-sm break-inside-avoid mb-4">
+      <div className="rounded-2xl overflow-hidden bg-white shadow-sm break-inside-avoid mb-4" style={{ border: "1px solid var(--border)" }}>
         <img src={post.gif_url} alt={post.gif_title ?? "GIF"} className="w-full object-cover max-h-56" />
         <div className="flex items-center gap-2 p-3">
           <Avatar name={post.author_name} color={post.author_avatar_color} size={7} />
-          <p className="text-sm font-medium text-gray-700">{post.author_name}</p>
+          <p className="text-sm font-medium" style={{ color: "var(--text)" }}>{post.author_name}</p>
           {post.reaction && <span className="ml-auto text-lg">{post.reaction}</span>}
         </div>
       </div>
@@ -259,31 +264,72 @@ function PostTile({ post }: { post: Post }) {
   }
   if (post.audio_url) {
     return (
-      <div className="rounded-2xl bg-indigo-50 p-4 break-inside-avoid mb-4 shadow-sm">
+      <div className="rounded-2xl p-4 break-inside-avoid mb-4 shadow-sm" style={{ background: "var(--accent-light)", border: "1px solid var(--border)" }}>
         <div className="flex items-center gap-2 mb-3">
           <span className="text-2xl">🎙</span>
-          <span className="text-sm font-medium text-indigo-700">Voice message</span>
+          <span className="text-sm font-medium" style={{ color: "var(--accent)" }}>Voice message</span>
         </div>
         <audio controls src={post.audio_url} className="w-full h-8" />
         <div className="flex items-center gap-2 mt-3">
           <Avatar name={post.author_name} color={post.author_avatar_color} size={7} />
-          <p className="text-sm font-medium text-gray-700">{post.author_name}</p>
-          <p className="text-xs text-gray-400 ml-auto">{fmtDate(post.created_at)}</p>
+          <p className="text-sm font-medium" style={{ color: "var(--text)" }}>{post.author_name}</p>
+          <p className="text-xs ml-auto" style={{ color: "var(--muted)" }}>{fmtDate(post.created_at)}</p>
         </div>
       </div>
     );
   }
   return (
-    <div className="rounded-2xl bg-white p-4 shadow-sm break-inside-avoid mb-4">
+    <div className="rounded-2xl bg-white p-4 shadow-sm break-inside-avoid mb-4" style={{ border: "1px solid var(--border)" }}>
       <div className="flex items-center gap-2 mb-2">
         <Avatar name={post.author_name} color={post.author_avatar_color} size={7} />
         <div className="min-w-0">
-          <p className="text-sm font-semibold text-gray-800 truncate">{post.author_name}</p>
-          <p className="text-xs text-gray-400">{fmtDate(post.created_at)}</p>
+          <p className="text-sm font-semibold truncate" style={{ color: "var(--text)" }}>{post.author_name}</p>
+          <p className="text-xs" style={{ color: "var(--muted)" }}>{fmtDate(post.created_at)}</p>
         </div>
       </div>
-      {post.message && <p className="text-sm text-gray-700 leading-relaxed mt-1">{post.message}</p>}
+      {post.message && <p className="text-sm leading-relaxed mt-1" style={{ color: "var(--text)" }}>{post.message}</p>}
       {post.reaction && <p className="mt-2 text-xl">{post.reaction}</p>}
+    </div>
+  );
+}
+
+// ─── Cheer Snippet (collated highlights view) ─────────────────────────────────
+function CheerSnippet({ post }: { post: Post }) {
+  const [expanded, setExpanded] = useState(false);
+  const mediaType = post.photo_url ? "📷" : post.gif_url ? "🎞" : post.audio_url ? "🎙" : null;
+  const preview = post.message ? post.message.slice(0, 100) + (post.message.length > 100 ? "…" : "") : null;
+
+  return (
+    <div
+      className="bg-white rounded-xl p-4 shadow-sm cursor-pointer transition-all hover:shadow-md"
+      style={{ border: "1px solid var(--border)" }}
+      onClick={() => setExpanded(e => !e)}
+    >
+      <div className="flex items-center gap-3 mb-2">
+        <Avatar name={post.author_name} color={post.author_avatar_color} size={8} />
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-semibold truncate" style={{ color: "var(--text)" }}>{post.author_name}</p>
+          <p className="text-xs" style={{ color: "var(--muted)" }}>{fmtDate(post.created_at)}</p>
+        </div>
+        {mediaType && (
+          <span className="text-base flex-shrink-0" title={mediaType === "📷" ? "Photo" : mediaType === "🎞" ? "GIF" : "Voice"}>
+            {mediaType}
+          </span>
+        )}
+        {post.reaction && <span className="text-base flex-shrink-0">{post.reaction}</span>}
+      </div>
+      {!expanded && preview && (
+        <p className="text-sm leading-relaxed" style={{ color: "var(--muted)" }}>{preview}</p>
+      )}
+      {expanded && (
+        <div className="mt-2">
+          {post.message && <p className="text-sm leading-relaxed mb-2" style={{ color: "var(--text)" }}>{post.message}</p>}
+          {post.photo_url && <img src={post.photo_url} alt="Photo" className="w-full rounded-lg object-cover max-h-48 mb-2" />}
+          {post.gif_url && <img src={post.gif_url} alt="GIF" className="w-full rounded-lg object-cover max-h-40 mb-2" />}
+          {post.audio_url && <audio controls src={post.audio_url} className="w-full h-8 mb-2" />}
+        </div>
+      )}
+      <p className="text-xs mt-2" style={{ color: "var(--accent)" }}>{expanded ? "Show less ↑" : "See more ↓"}</p>
     </div>
   );
 }
@@ -300,6 +346,7 @@ export default function BoardPage() {
   const [gifts, setGifts] = useState<Gift[]>([]);
   const [badges, setBadges] = useState<Badge[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showAllPosts, setShowAllPosts] = useState(false);
   const confettiFired = useRef(false);
 
   // Composer state
@@ -420,7 +467,7 @@ export default function BoardPage() {
       body: JSON.stringify(body),
     });
     if (res.ok) {
-      confetti({ particleCount: 50, spread: 60, origin: { y: 0.6 }, colors: ["#6366f1","#ec4899","#f59e0b"] });
+      confetti({ particleCount: 50, spread: 60, origin: { y: 0.6 }, colors: ["#1557FF","#93B4FF","#0A3FD4","#ffffff"] });
       setMessage(""); setReaction(""); setSelectedGif(null); setPhotoData(null);
       setAudioBlob(null); setAudioUrl(null); setTab("text");
       await fetchBoard();
@@ -458,16 +505,16 @@ export default function BoardPage() {
   }
 
   if (loading) return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 to-pink-50">
+    <div className="min-h-screen flex items-center justify-center" style={{ background: "var(--bg)" }}>
       <div className="text-center">
         <div className="text-4xl mb-3 animate-bounce">🎉</div>
-        <p className="text-gray-500">Loading the board…</p>
+        <p style={{ color: "var(--muted)" }}>Loading the board…</p>
       </div>
     </div>
   );
   if (!board) return (
-    <div className="min-h-screen flex items-center justify-center">
-      <p className="text-gray-500">Board not found.</p>
+    <div className="min-h-screen flex items-center justify-center" style={{ background: "var(--bg)" }}>
+      <p style={{ color: "var(--muted)" }}>Board not found.</p>
     </div>
   );
 
@@ -485,19 +532,23 @@ export default function BoardPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-pink-50">
-      {/* Nav */}
-      <div className="sticky top-0 z-30 bg-white/80 backdrop-blur border-b border-gray-100 px-4 py-3 flex items-center gap-3">
-        <button onClick={() => router.push("/")} className="text-gray-400 hover:text-gray-600 mr-1 text-lg">←</button>
+    <div className="min-h-screen" style={{ background: "var(--bg)" }}>
+      {/* Sub-nav */}
+      <div className="sticky top-0 z-30 bg-white backdrop-blur px-4 py-3 flex items-center gap-3"
+        style={{ borderBottom: "1px solid var(--border)" }}>
+        <button onClick={() => router.push("/")} className="text-lg mr-1" style={{ color: "var(--muted)" }}>←</button>
         <div className="min-w-0 flex-1">
-          <p className="font-bold text-gray-800 truncate text-sm">{board.title}</p>
-          <p className="text-xs text-gray-400">For {board.honoree_name}</p>
+          <p className="font-bold truncate text-sm" style={{ color: "var(--text)" }}>{board.title}</p>
+          <p className="text-xs" style={{ color: "var(--muted)" }}>For {board.honoree_name}</p>
         </div>
         <div className="flex gap-1 flex-shrink-0">
           {views.map(v => (
             <button key={v.key}
               onClick={() => router.push(`/board/${id}?view=${v.key}`)}
-              className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${view === v.key ? "bg-indigo-600 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}>
+              className="px-3 py-1.5 rounded-full text-xs font-medium transition-colors"
+              style={view === v.key
+                ? { background: "var(--accent)", color: "#fff" }
+                : { background: "var(--accent-light)", color: "var(--accent)" }}>
               {v.label}
             </button>
           ))}
@@ -507,31 +558,85 @@ export default function BoardPage() {
       {/* ── BOARD VIEW ─────────────────────────────────────────────── */}
       {view === "board" && (
         <div className="max-w-6xl mx-auto px-4 py-6 flex gap-6">
-          {/* Masonry wall */}
+          {/* Left: highlights or full wall */}
           <div className="flex-1 min-w-0">
-            <div className="columns-2 md:columns-3 gap-4">
-              {posts.map(p => <PostTile key={p.id} post={p} />)}
-              {posts.length === 0 && (
-                <div className="col-span-3 text-center py-16 text-gray-400">
-                  <p className="text-4xl mb-2">✉️</p>
-                  <p>No posts yet. Be the first!</p>
+            {/* Event collation header */}
+            <div className="rounded-2xl p-5 mb-5 flex items-center gap-4"
+              style={{ background: "var(--navy)", color: "#fff" }}>
+              <div className="text-4xl">{TYPE_EMOJI[board.type] ?? "🎉"}</div>
+              <div className="flex-1 min-w-0">
+                <p className="font-bold text-base truncate">{board.title}</p>
+                <p className="text-sm opacity-70">{board.honoree_name} · {board.values_tag}</p>
+              </div>
+              <div className="flex gap-4 text-center flex-shrink-0">
+                <div>
+                  <p className="text-2xl font-bold">{posts.filter(p => !p.is_manager_note).length}</p>
+                  <p className="text-xs opacity-60">cheers</p>
                 </div>
-              )}
+                {totalHrs > 0 && (
+                  <div>
+                    <p className="text-2xl font-bold">{totalHrs}</p>
+                    <p className="text-xs opacity-60">gift hrs</p>
+                  </div>
+                )}
+              </div>
             </div>
+
+            {/* Toggle between highlights and full wall */}
+            <div className="flex items-center justify-between mb-4">
+              <p className="text-sm font-semibold" style={{ color: "var(--text)" }}>
+                {showAllPosts ? "All messages" : "Highlights"} · {posts.filter(p => !p.is_manager_note).length} contributions
+              </p>
+              <button
+                onClick={() => setShowAllPosts(s => !s)}
+                className="text-xs font-medium px-3 py-1.5 rounded-full transition-colors"
+                style={{ background: "var(--accent-light)", color: "var(--accent)" }}>
+                {showAllPosts ? "↑ Collapse" : "View all messages →"}
+              </button>
+            </div>
+
+            {/* Manager note always shown first */}
+            {managerNotePost && <PostTile post={managerNotePost} />}
+
+            {posts.filter(p => !p.is_manager_note).length === 0 && (
+              <div className="text-center py-16" style={{ color: "var(--muted)" }}>
+                <p className="text-4xl mb-2">✉️</p>
+                <p>No cheers yet. Be the first!</p>
+              </div>
+            )}
+
+            {/* Highlights grid (default) */}
+            {!showAllPosts && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {posts.filter(p => !p.is_manager_note).map(p => (
+                  <CheerSnippet key={p.id} post={p} />
+                ))}
+              </div>
+            )}
+
+            {/* Full masonry wall */}
+            {showAllPosts && (
+              <div className="columns-2 md:columns-3 gap-4">
+                {posts.filter(p => !p.is_manager_note).map(p => <PostTile key={p.id} post={p} />)}
+              </div>
+            )}
           </div>
 
           {/* Composer sidebar */}
           <div className="w-80 flex-shrink-0">
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden sticky top-20">
-              <div className="p-4 border-b border-gray-50">
-                <p className="font-semibold text-gray-800 text-sm">Leave a message</p>
+            <div className="bg-white rounded-2xl shadow-sm overflow-hidden sticky top-20" style={{ border: "1px solid var(--border)" }}>
+              <div className="p-4" style={{ borderBottom: "1px solid var(--border)" }}>
+                <p className="font-semibold text-sm" style={{ color: "var(--text)" }}>Leave a cheer</p>
               </div>
 
               {/* Tabs */}
-              <div className="flex border-b border-gray-100">
+              <div className="flex" style={{ borderBottom: "1px solid var(--border)" }}>
                 {(["text","gif","photo","voice"] as const).map(t => (
                   <button key={t} onClick={() => setTab(t)}
-                    className={`flex-1 py-2.5 text-base transition-colors ${tab === t ? "border-b-2 border-indigo-500 bg-indigo-50" : "text-gray-400 hover:bg-gray-50"}`}>
+                    className="flex-1 py-2.5 text-base transition-colors"
+                    style={tab === t
+                      ? { borderBottom: "2px solid var(--accent)", background: "var(--accent-light)" }
+                      : { color: "var(--muted)" }}>
                     {t === "text" ? "💬" : t === "gif" ? "🎞" : t === "photo" ? "📷" : "🎙"}
                   </button>
                 ))}
@@ -544,18 +649,23 @@ export default function BoardPage() {
                     <div className="flex flex-wrap gap-1.5">
                       {autoMsgs.map(m => (
                         <button key={m.label} onClick={() => setMessage(m.text)}
-                          className="px-2 py-1 rounded-full bg-indigo-50 text-indigo-600 text-xs hover:bg-indigo-100 transition-colors">
+                          className="px-2 py-1 rounded-full text-xs transition-colors"
+                          style={{ background: "var(--accent-light)", color: "var(--accent)" }}>
                           {m.label}
                         </button>
                       ))}
                     </div>
                     <textarea value={message} onChange={e => setMessage(e.target.value)}
                       placeholder="Write your message…" rows={3}
-                      className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-indigo-300" />
+                      className="w-full text-sm rounded-xl px-3 py-2 resize-none focus:outline-none"
+                      style={{ border: "1px solid var(--border)", outline: "none" }}
+                      onFocus={e => e.target.style.boxShadow = "0 0 0 2px var(--accent)"}
+                      onBlur={e => e.target.style.boxShadow = ""} />
                     <div className="flex flex-wrap gap-1">
                       {REACTIONS.map(r => (
                         <button key={r} onClick={() => setReaction(reaction === r ? "" : r)}
-                          className={`text-lg p-1 rounded-lg transition-colors ${reaction === r ? "bg-indigo-100" : "hover:bg-gray-100"}`}>
+                          className="text-lg p-1 rounded-lg transition-colors"
+                          style={reaction === r ? { background: "var(--accent-light)" } : {}}>
                           {r}
                         </button>
                       ))}
@@ -568,7 +678,10 @@ export default function BoardPage() {
                   <div className="grid grid-cols-3 gap-1.5 max-h-60 overflow-y-auto">
                     {gifSet.map((url, i) => (
                       <button key={i} onClick={() => { setSelectedGif({ url, title: `GIF ${i+1}` }); setTab("text"); }}
-                        className="aspect-square rounded-lg overflow-hidden hover:ring-2 hover:ring-indigo-400 transition-all">
+                        className="aspect-square rounded-lg overflow-hidden transition-all"
+                        style={{ outline: "none" }}
+                        onMouseEnter={e => (e.currentTarget.style.boxShadow = "0 0 0 2px var(--accent)")}
+                        onMouseLeave={e => (e.currentTarget.style.boxShadow = "")}>
                         <img src={url} alt="gif" className="w-full h-full object-cover" />
                       </button>
                     ))}
@@ -583,7 +696,8 @@ export default function BoardPage() {
                         onDragOver={e => { e.preventDefault(); setIsDragging(true); }}
                         onDragLeave={() => setIsDragging(false)}
                         onDrop={async e => { e.preventDefault(); setIsDragging(false); const f = e.dataTransfer.files[0]; if (f) await handlePhotoFile(f); }}
-                        className={`flex flex-col items-center justify-center gap-2 border-2 border-dashed rounded-xl h-32 cursor-pointer transition-colors ${isDragging ? "border-indigo-400 bg-indigo-50" : "border-gray-200 hover:border-indigo-300"}`}>
+                        className="flex flex-col items-center justify-center gap-2 border-2 border-dashed rounded-xl h-32 cursor-pointer transition-colors"
+                        style={{ borderColor: isDragging ? "var(--accent)" : "var(--border)", background: isDragging ? "var(--accent-light)" : "transparent" }}>
                         <span className="text-2xl">📷</span>
                         <span className="text-xs text-gray-400">Drag & drop or click to choose</span>
                         <input type="file" accept="image/*" className="hidden"
@@ -610,11 +724,11 @@ export default function BoardPage() {
                           <>
                             <div className="flex items-end gap-1 h-10">
                               {[...Array(8)].map((_, i) => (
-                                <div key={i} className="w-1.5 bg-indigo-500 rounded-full animate-pulse"
-                                  style={{ height: `${20 + (i % 3) * 10}px`, animationDelay: `${i * 0.1}s` }} />
+                                <div key={i} className="w-1.5 rounded-full animate-pulse"
+                                  style={{ height: `${20 + (i % 3) * 10}px`, animationDelay: `${i * 0.1}s`, background: "var(--accent)" }} />
                               ))}
                             </div>
-                            <p className="text-xs text-gray-500">{recSeconds}s / 60s</p>
+                            <p className="text-xs" style={{ color: "var(--muted)" }}>{recSeconds}s / 60s</p>
                             <button onClick={stopRecording}
                               className="px-4 py-2 bg-red-500 text-white rounded-full text-sm font-medium hover:bg-red-600 transition-colors">
                               ⏹ Stop
@@ -623,10 +737,11 @@ export default function BoardPage() {
                         ) : (
                           <>
                             <button onClick={startRecording}
-                              className="px-4 py-2 bg-indigo-600 text-white rounded-full text-sm font-medium hover:bg-indigo-700 transition-colors">
+                              className="px-4 py-2 text-white rounded-full text-sm font-medium transition-opacity hover:opacity-90"
+                              style={{ background: "var(--accent)" }}>
                               🎙 Start Recording
                             </button>
-                            <p className="text-xs text-gray-400">Max 60s</p>
+                            <p className="text-xs" style={{ color: "var(--muted)" }}>Max 60s</p>
                           </>
                         )}
                       </>
@@ -635,11 +750,13 @@ export default function BoardPage() {
                         <audio controls src={audioUrl} className="w-full h-8" />
                         <div className="flex gap-2">
                           <button onClick={() => { setAudioBlob(null); setAudioUrl(null); }}
-                            className="flex-1 py-1.5 text-xs border border-gray-200 rounded-lg hover:bg-gray-50">
+                            className="flex-1 py-1.5 text-xs rounded-lg"
+                            style={{ border: "1px solid var(--border)", color: "var(--muted)" }}>
                             Re-record
                           </button>
                           <button onClick={() => setTab("text")}
-                            className="flex-1 py-1.5 text-xs bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">
+                            className="flex-1 py-1.5 text-xs text-white rounded-lg"
+                            style={{ background: "var(--accent)" }}>
                             Use this ✓
                           </button>
                         </div>
@@ -660,15 +777,18 @@ export default function BoardPage() {
                 )}
 
                 {/* Author + Post */}
-                <div className="pt-2 border-t border-gray-50 space-y-2">
+                <div className="pt-2 space-y-2" style={{ borderTop: "1px solid var(--border)" }}>
                   <input value={authorName} onChange={e => setAuthorName(e.target.value)}
                     placeholder="Your name (required)"
-                    className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-300" />
+                    className="w-full text-sm rounded-xl px-3 py-2 focus:outline-none"
+                    style={{ border: "1px solid var(--border)" }} />
                   <input value={authorEmail} onChange={e => setAuthorEmail(e.target.value)}
                     placeholder="Email (optional)"
-                    className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-300" />
+                    className="w-full text-sm rounded-xl px-3 py-2 focus:outline-none"
+                    style={{ border: "1px solid var(--border)" }} />
                   <button onClick={submitPost} disabled={posting || !authorName.trim()}
-                    className="w-full py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-semibold hover:bg-indigo-700 transition-colors disabled:opacity-50">
+                    className="w-full py-2.5 text-white rounded-xl text-sm font-semibold transition-opacity hover:opacity-90 disabled:opacity-50"
+                    style={{ background: "var(--accent)" }}>
                     {posting ? "Posting…" : "Post 🎉"}
                   </button>
                 </div>
@@ -681,22 +801,24 @@ export default function BoardPage() {
       {/* ── MANAGER VIEW ───────────────────────────────────────────── */}
       {view === "manager" && (
         <div className="max-w-3xl mx-auto px-4 py-6 space-y-6">
-          <h2 className="text-xl font-bold text-gray-800">👥 Manager View</h2>
+          <h2 className="text-xl font-bold" style={{ color: "var(--text)" }}>👥 Manager View</h2>
 
           {/* Manager note */}
-          <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
-            <p className="font-semibold text-gray-700 mb-3">📌 Manager Note</p>
+          <div className="bg-white rounded-2xl p-5 shadow-sm" style={{ border: "1px solid var(--border)" }}>
+            <p className="font-semibold mb-3" style={{ color: "var(--text)" }}>📌 Manager Note</p>
             {managerNotePost ? (
-              <div className="rounded-xl p-4 text-white text-sm" style={{ background: "linear-gradient(135deg,#6366f1,#ec4899)" }}>
+              <div className="rounded-xl p-4 text-white text-sm" style={{ background: "linear-gradient(135deg,#060E27,#1557FF)" }}>
                 {managerNotePost.message}
               </div>
             ) : (
               <div className="space-y-2">
                 <textarea value={managerNote} onChange={e => setManagerNote(e.target.value)}
                   placeholder="Pin a personal note at the top of the board…" rows={3}
-                  className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-indigo-300" />
+                  className="w-full text-sm rounded-xl px-3 py-2 resize-none focus:outline-none"
+                  style={{ border: "1px solid var(--border)" }} />
                 <button onClick={submitManagerNote} disabled={savingNote || !managerNote.trim()}
-                  className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700 disabled:opacity-50">
+                  className="px-4 py-2 text-white rounded-xl text-sm font-medium disabled:opacity-50 transition-opacity hover:opacity-90"
+                  style={{ background: "var(--accent)" }}>
                   {savingNote ? "Saving…" : "Pin Note"}
                 </button>
               </div>
@@ -704,17 +826,17 @@ export default function BoardPage() {
           </div>
 
           {/* Gift approval queue */}
-          <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
-            <p className="font-semibold text-gray-700 mb-3">🎁 Gift Approval Queue</p>
+          <div className="bg-white rounded-2xl p-5 shadow-sm" style={{ border: "1px solid var(--border)" }}>
+            <p className="font-semibold mb-3" style={{ color: "var(--text)" }}>🎁 Gift Approval Queue</p>
             {gifts.length === 0 ? (
-              <p className="text-sm text-gray-400">No gift contributions yet.</p>
+              <p className="text-sm" style={{ color: "var(--muted)" }}>No gift contributions yet.</p>
             ) : (
               <div className="space-y-2">
                 {gifts.map(g => (
-                  <div key={g.id} className="flex items-center gap-3 p-3 rounded-xl bg-gray-50">
+                  <div key={g.id} className="flex items-center gap-3 p-3 rounded-xl" style={{ background: "var(--bg)" }}>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-800">{g.from_name}</p>
-                      <p className="text-xs text-gray-500">
+                      <p className="text-sm font-medium" style={{ color: "var(--text)" }}>{g.from_name}</p>
+                      <p className="text-xs" style={{ color: "var(--muted)" }}>
                         {g.amount}h · {g.gift_type.replace(/_/g," ")}
                         {g.note ? ` · "${g.note}"` : ""}
                       </p>
@@ -742,27 +864,29 @@ export default function BoardPage() {
           </div>
 
           {/* Team participation checklist */}
-          <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
-            <p className="font-semibold text-gray-700 mb-3">✅ Team Participation</p>
+          <div className="bg-white rounded-2xl p-5 shadow-sm" style={{ border: "1px solid var(--border)" }}>
+            <p className="font-semibold mb-3" style={{ color: "var(--text)" }}>✅ Team Participation</p>
             <div className="space-y-2">
               {EXPECTED_TEAM.map(name => {
                 const posted = posters.includes(name);
                 return (
-                  <div key={name} className={`flex items-center gap-3 p-2.5 rounded-xl ${posted ? "bg-green-50" : "bg-gray-50"}`}>
+                  <div key={name} className="flex items-center gap-3 p-2.5 rounded-xl"
+                    style={{ background: posted ? "#ECFDF5" : "var(--bg)" }}>
                     <span className="text-lg">{posted ? "✅" : "⬜"}</span>
-                    <span className="text-sm text-gray-700">{name}</span>
-                    {posted && <span className="ml-auto text-xs text-green-600 font-medium">Posted</span>}
+                    <span className="text-sm" style={{ color: "var(--text)" }}>{name}</span>
+                    {posted && <span className="ml-auto text-xs text-emerald-600 font-medium">Posted</span>}
                   </div>
                 );
               })}
             </div>
-            <p className="text-xs text-gray-400 mt-3">{posters.length} / {EXPECTED_TEAM.length} team members posted</p>
+            <p className="text-xs mt-3" style={{ color: "var(--muted)" }}>{posters.length} / {EXPECTED_TEAM.length} team members posted</p>
           </div>
 
           {/* Export to Workday stub */}
           <button
             onClick={() => alert("Workday export coming soon! This would push approved time-off to Workday.")}
-            className="w-full py-3 border-2 border-dashed border-indigo-200 text-indigo-500 rounded-2xl text-sm font-medium hover:border-indigo-400 hover:text-indigo-600 transition-colors">
+            className="w-full py-3 rounded-2xl text-sm font-medium transition-colors"
+            style={{ border: "2px dashed var(--border)", color: "var(--accent)" }}>
             📤 Export to Workday (stub)
           </button>
         </div>
@@ -773,7 +897,7 @@ export default function BoardPage() {
         <div className="max-w-2xl mx-auto px-4 py-6 space-y-6">
           {/* Hero */}
           <div className="relative rounded-3xl overflow-hidden p-8 text-white text-center"
-            style={{ background: "linear-gradient(135deg,#6366f1,#ec4899,#f59e0b)" }}>
+            style={{ background: "linear-gradient(135deg,#060E27 0%,#1557FF 100%)" }}>
             <div className="mx-auto mb-4 rounded-full flex items-center justify-center text-3xl font-bold bg-white/20"
               style={{ width: 80, height: 80 }}>
               {initials(board.honoree_name)}
@@ -803,18 +927,18 @@ export default function BoardPage() {
 
           {/* Badges showcase */}
           {badges.length > 0 && (
-            <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
-              <p className="font-semibold text-gray-700 mb-3">🏅 Your Badges</p>
+            <div className="bg-white rounded-2xl p-5 shadow-sm" style={{ border: "1px solid var(--border)" }}>
+              <p className="font-semibold mb-3" style={{ color: "var(--text)" }}>🏅 Your Badges</p>
               <div className="flex flex-wrap gap-2">
                 {badges.map(b => {
-                  const meta = BADGE_META[b.badge_type] ?? { icon: "⭐", color: "#6366f1", label: b.badge_type };
+                  const meta = BADGE_META[b.badge_type] ?? { icon: "⭐", color: "#1557FF", label: b.badge_type };
                   return (
                     <div key={b.id} className="flex items-center gap-2 px-3 py-2 rounded-xl"
                       style={{ backgroundColor: meta.color + "15", border: `1px solid ${meta.color}30` }}>
                       <span className="text-xl">{meta.icon}</span>
                       <div>
                         <p className="text-xs font-semibold" style={{ color: meta.color }}>{meta.label}</p>
-                        <p className="text-xs text-gray-400">{b.person_name}</p>
+                        <p className="text-xs" style={{ color: "var(--muted)" }}>{b.person_name}</p>
                       </div>
                     </div>
                   );
@@ -825,10 +949,10 @@ export default function BoardPage() {
 
           {/* Messages list */}
           <div className="space-y-3">
-            <p className="font-semibold text-gray-700">💌 Messages from your team</p>
+            <p className="font-semibold" style={{ color: "var(--text)" }}>💌 All cheers from your team</p>
             {posts.map(p => <PostTile key={p.id} post={p} />)}
             {posts.length === 0 && (
-              <div className="text-center py-10 text-gray-400">
+              <div className="text-center py-10" style={{ color: "var(--muted)" }}>
                 <p className="text-3xl mb-2">📭</p>
                 <p className="text-sm">No messages yet — share the board link!</p>
               </div>
