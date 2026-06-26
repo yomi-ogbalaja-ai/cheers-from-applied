@@ -12,8 +12,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const postId = randomUUID();
 
   db.prepare(`INSERT INTO board_posts
-    (id, board_id, author_name, author_email, author_avatar_color, message, gif_url, gif_title, photo_url, audio_url, reaction, is_manager_note)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    (id, board_id, author_name, author_email, author_avatar_color, message, gif_url, gif_title, photo_url, audio_url, reaction, is_manager_note, values_tag)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     postId,
     id,
@@ -27,6 +27,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     body.audio_url ?? null,
     body.reaction ?? null,
     body.is_manager_note ? 1 : 0,
+    body.values_tag ?? null,
   );
 
   // Auto-award badge if first post by this author on this board

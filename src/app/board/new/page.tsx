@@ -8,18 +8,51 @@ type MilestoneType = {
   key: string;
   emoji: string;
   label: string;
-  tag: string;
+  tag: string;   // stored value name
+  cheer: string; // affirmation shown on the card
 };
 
 const TYPES: MilestoneType[] = [
-  { key: "birthday", emoji: "🎂", label: "Birthday", tag: "Win Together" },
-  { key: "promotion", emoji: "🚀", label: "Promotion", tag: "Move with Urgency" },
-  { key: "new_hire", emoji: "👋", label: "New Hire", tag: "Win Together" },
-  { key: "work_anniversary", emoji: "🥂", label: "Work Anniversary", tag: "Win Together" },
-  { key: "wedding", emoji: "💍", label: "Wedding", tag: "Win Together" },
-  { key: "new_baby", emoji: "👶", label: "New Baby", tag: "Win Together" },
-  { key: "get_well", emoji: "💐", label: "Get Well", tag: "Win Together" },
-  { key: "personal_achievement", emoji: "🌟", label: "Personal Achievement", tag: "Be Bold" },
+  {
+    key: "birthday", emoji: "🎂", label: "Birthday",
+    tag: "Win Together",
+    cheer: "who's here matters · Win Together",
+  },
+  {
+    key: "promotion", emoji: "🚀", label: "Promotion",
+    tag: "Be Bold",
+    cheer: "saw the opening, took it · Be Bold",
+  },
+  {
+    key: "new_hire", emoji: "👋", label: "New Hire",
+    tag: "Win Together",
+    cheer: "the team is only as strong as who's in it",
+  },
+  {
+    key: "work_anniversary", emoji: "🥂", label: "Work Anniversary",
+    tag: "Move with Urgency",
+    cheer: "showing up, year after year · Move with Urgency",
+  },
+  {
+    key: "wedding", emoji: "💍", label: "Wedding",
+    tag: "Win Together",
+    cheer: "the biggest commitment, made together",
+  },
+  {
+    key: "new_baby", emoji: "👶", label: "New Baby",
+    tag: "Win Together",
+    cheer: "family is the original team",
+  },
+  {
+    key: "get_well", emoji: "💐", label: "Get Well",
+    tag: "Win Together",
+    cheer: "real teams don't wait · they show up",
+  },
+  {
+    key: "personal_achievement", emoji: "🌟", label: "Personal Achievement",
+    tag: "Be Bold",
+    cheer: "hard goal, clear-eyed pursuit, done",
+  },
 ];
 
 const TITLE_TEMPLATES: Record<string, (name: string) => string> = {
@@ -33,6 +66,24 @@ const TITLE_TEMPLATES: Record<string, (name: string) => string> = {
   personal_achievement: (n) => `Cheers to You, ${n}! 🌟`,
 };
 
+const APPLIED_VALUES = [
+  {
+    value: "Win Together",
+    cheer: "no one wins alone",
+    detail: "Recognising that the team made this possible. Shared effort, shared credit.",
+  },
+  {
+    value: "Be Bold",
+    cheer: "saw the opening, took it",
+    detail: "Celebrating a risk taken, a hard goal pursued, a ceiling raised",
+  },
+  {
+    value: "Move with Urgency",
+    cheer: "bias to action, no waiting",
+    detail: "Honouring consistency, momentum, and showing up without being asked",
+  },
+];
+
 type FormData = {
   honoreeName: string;
   honoreeEmail: string;
@@ -45,6 +96,7 @@ type FormData = {
   managerApproval: "yes" | "no";
   managerEmail: string;
   closeDays: number;
+  valuesTag: string;
 };
 
 type CreatedBoard = {
@@ -68,6 +120,7 @@ export default function NewBoardPage() {
     managerApproval: "no",
     managerEmail: "",
     closeDays: 30,
+    valuesTag: "",
   });
   const [loading, setLoading] = useState(false);
   const [created, setCreated] = useState<CreatedBoard | null>(null);
@@ -81,6 +134,7 @@ export default function NewBoardPage() {
 
   function handleTypeSelect(t: MilestoneType) {
     setSelectedType(t);
+    setForm(f => ({ ...f, valuesTag: t.tag }));
     setStep(2);
   }
 
@@ -108,7 +162,7 @@ export default function NewBoardPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           type: selectedType.key,
-          values_tag: selectedType.tag,
+          values_tag: form.valuesTag || selectedType.tag,
           honoree_name: form.honoreeName,
           honoree_email: form.honoreeEmail,
           title: form.title,
@@ -146,7 +200,7 @@ export default function NewBoardPage() {
     setForm({
       honoreeName: "", honoreeEmail: "", title: "", description: "",
       milestoneDate: "", creatorName: "", creatorEmail: "",
-      privacy: "public", managerApproval: "no", managerEmail: "", closeDays: 30,
+      privacy: "public", managerApproval: "no", managerEmail: "", closeDays: 30, valuesTag: "",
     });
   }
 
@@ -163,13 +217,15 @@ export default function NewBoardPage() {
                 key={t.key}
                 onClick={() => handleTypeSelect(t)}
                 className="group relative flex flex-col items-center gap-2 p-5 rounded-2xl border-2 border-transparent bg-white
-                  shadow-sm hover:shadow-md hover:scale-105 hover:border-indigo-300 active:scale-95
-                  transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                  shadow-sm hover:shadow-md hover:scale-105 active:scale-95
+                  transition-all duration-150 focus:outline-none"
+                style={{ outline: "none" }}
+                onMouseEnter={e => (e.currentTarget.style.borderColor = "var(--accent)")}
+                onMouseLeave={e => (e.currentTarget.style.borderColor = "transparent")}
               >
-                <span className="absolute inset-x-0 top-0 h-1 rounded-t-2xl bg-gradient-to-r from-indigo-400 to-pink-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                <span className="absolute inset-x-0 top-0 h-1 rounded-t-2xl opacity-0 group-hover:opacity-100 transition-opacity" style={{ background: "var(--accent)" }} />
                 <span className="text-4xl">{t.emoji}</span>
                 <span className="text-sm font-semibold text-gray-700 text-center leading-tight">{t.label}</span>
-                <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-600">{t.tag}</span>
               </button>
             ))}
           </div>
@@ -189,11 +245,11 @@ export default function NewBoardPage() {
               <div key={s} className="flex items-center gap-2">
                 <div
                   className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-colors ${s <= step ? "text-white" : "text-gray-400 bg-gray-100"}`}
-                  style={s <= step ? { background: "linear-gradient(135deg, #6366f1, #ec4899)" } : {}}
+                  style={s <= step ? { background: "var(--accent)" } : {}}
                 >
                   {s}
                 </div>
-                {s < 2 && <div className={`h-0.5 w-10 rounded ${step > s ? "bg-indigo-400" : "bg-gray-200"}`} />}
+                {s < 2 && <div className={`h-0.5 w-10 rounded`} style={{ background: step > s ? "var(--accent)" : "var(--border)" }} />}
               </div>
             ))}
             <span className="ml-2 text-sm text-gray-400">Step 2 of 2</span>
@@ -217,7 +273,7 @@ export default function NewBoardPage() {
                   onChange={(e) => setField("honoreeName", e.target.value)}
                   onBlur={handleHonoreeBlur}
                   placeholder="e.g. Alex Johnson"
-                  className="w-full border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                  className="w-full border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:outline-none"
                   style={{ borderColor: "var(--border)" }}
                 />
               </div>
@@ -229,7 +285,7 @@ export default function NewBoardPage() {
                   value={form.honoreeEmail}
                   onChange={(e) => setField("honoreeEmail", e.target.value)}
                   placeholder="alex@company.com"
-                  className="w-full border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                  className="w-full border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:outline-none"
                   style={{ borderColor: "var(--border)" }}
                 />
               </div>
@@ -238,6 +294,34 @@ export default function NewBoardPage() {
             {/* Board content */}
             <div className="bg-white rounded-2xl border p-5 space-y-4" style={{ borderColor: "var(--border)" }}>
               <h2 className="font-semibold text-gray-800 text-sm uppercase tracking-wide">Board Content</h2>
+
+              {/* Applied value */}
+              <div>
+                <label className="block text-sm text-gray-600 mb-1">Applied value this celebrates</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {APPLIED_VALUES.map(v => (
+                    <button
+                      key={v.value}
+                      type="button"
+                      onClick={() => setField("valuesTag", v.value)}
+                      className="flex flex-col items-start p-3 rounded-xl border-2 text-left transition-all"
+                      style={form.valuesTag === v.value
+                        ? { borderColor: "var(--accent)", background: "var(--accent-light)" }
+                        : { borderColor: "var(--border)", background: "#fff" }}>
+                      <span className="text-xs font-semibold leading-tight" style={{ color: form.valuesTag === v.value ? "var(--accent)" : "var(--text)" }}>
+                        {v.value}
+                      </span>
+                      <span className="text-[10px] mt-1 leading-tight italic" style={{ color: form.valuesTag === v.value ? "var(--accent)" : "var(--muted)", opacity: 0.85 }}>
+                        {v.cheer}
+                      </span>
+                      <span className="text-[10px] mt-1.5 leading-snug" style={{ color: "var(--muted)" }}>
+                        {v.detail}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               <div>
                 <label className="block text-sm text-gray-600 mb-1">Board title</label>
                 <input
@@ -245,7 +329,7 @@ export default function NewBoardPage() {
                   value={form.title}
                   onChange={(e) => setField("title", e.target.value)}
                   placeholder="Auto-filled after entering name above"
-                  className="w-full border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                  className="w-full border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:outline-none"
                   style={{ borderColor: "var(--border)" }}
                 />
               </div>
@@ -256,7 +340,7 @@ export default function NewBoardPage() {
                   value={form.description}
                   onChange={(e) => setField("description", e.target.value)}
                   placeholder="Add context or a personal message..."
-                  className="w-full border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 resize-none"
+                  className="w-full border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:outline-none resize-none"
                   style={{ borderColor: "var(--border)" }}
                 />
               </div>
@@ -266,7 +350,7 @@ export default function NewBoardPage() {
                   type="date"
                   value={form.milestoneDate}
                   onChange={(e) => setField("milestoneDate", e.target.value)}
-                  className="border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                  className="border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:outline-none"
                   style={{ borderColor: "var(--border)" }}
                 />
               </div>
@@ -283,7 +367,7 @@ export default function NewBoardPage() {
                     value={form.creatorName}
                     onChange={(e) => setField("creatorName", e.target.value)}
                     placeholder="Your name"
-                    className="w-full border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                    className="w-full border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:outline-none"
                     style={{ borderColor: "var(--border)" }}
                   />
                 </div>
@@ -294,7 +378,7 @@ export default function NewBoardPage() {
                     value={form.creatorEmail}
                     onChange={(e) => setField("creatorEmail", e.target.value)}
                     placeholder="you@company.com"
-                    className="w-full border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                    className="w-full border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:outline-none"
                     style={{ borderColor: "var(--border)" }}
                   />
                 </div>
@@ -314,7 +398,7 @@ export default function NewBoardPage() {
                       key={p}
                       type="button"
                       onClick={() => setField("privacy", p)}
-                      className={`flex-1 py-2 rounded-xl text-sm font-medium border-2 transition-colors ${form.privacy === p ? "border-indigo-500 bg-indigo-50 text-indigo-700" : "border-gray-200 text-gray-500 hover:border-indigo-200"}`}
+                      className={`flex-1 py-2 rounded-xl text-sm font-medium border-2 transition-colors ${form.privacy === p ? "border-blue-600 bg-blue-50 text-blue-700" : "border-gray-200 text-gray-500 hover:border-blue-200"}`}
                     >
                       {p === "public" ? "🌐 Public" : "🔒 Private"}
                     </button>
@@ -332,7 +416,7 @@ export default function NewBoardPage() {
                   {(["yes", "no"] as const).map((v) => (
                     <label
                       key={v}
-                      className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-xl border-2 cursor-pointer text-sm font-medium transition-colors ${form.managerApproval === v ? "border-indigo-500 bg-indigo-50 text-indigo-700" : "border-gray-200 text-gray-500 hover:border-indigo-200"}`}
+                      className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-xl border-2 cursor-pointer text-sm font-medium transition-colors ${form.managerApproval === v ? "border-blue-600 bg-blue-50 text-blue-700" : "border-gray-200 text-gray-500 hover:border-blue-200"}`}
                     >
                       <input
                         type="radio"
@@ -356,7 +440,7 @@ export default function NewBoardPage() {
                     value={form.managerEmail}
                     onChange={(e) => setField("managerEmail", e.target.value)}
                     placeholder="manager@company.com"
-                    className="w-full border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                    className="w-full border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:outline-none"
                     style={{ borderColor: "var(--border)" }}
                   />
                 </div>
@@ -371,7 +455,7 @@ export default function NewBoardPage() {
                       key={d}
                       type="button"
                       onClick={() => setField("closeDays", d)}
-                      className={`flex-1 py-2 rounded-xl text-sm font-medium border-2 transition-colors ${form.closeDays === d ? "border-indigo-500 bg-indigo-50 text-indigo-700" : "border-gray-200 text-gray-500 hover:border-indigo-200"}`}
+                      className={`flex-1 py-2 rounded-xl text-sm font-medium border-2 transition-colors ${form.closeDays === d ? "border-blue-600 bg-blue-50 text-blue-700" : "border-gray-200 text-gray-500 hover:border-blue-200"}`}
                     >
                       {d}d
                     </button>
@@ -394,7 +478,7 @@ export default function NewBoardPage() {
                 type="submit"
                 disabled={loading}
                 className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-white font-bold text-sm transition-opacity hover:opacity-90 disabled:opacity-50"
-                style={{ background: "linear-gradient(135deg, #6366f1, #ec4899)" }}
+                style={{ background: "var(--accent)" }}
               >
                 {loading && (
                   <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
@@ -428,10 +512,11 @@ export default function NewBoardPage() {
             <div className="bg-white rounded-2xl border p-4 text-left" style={{ borderColor: "var(--border)" }}>
               <p className="text-xs font-semibold text-gray-400 uppercase mb-1.5">Board URL (internal)</p>
               <div className="flex items-center gap-2">
-                <span className="flex-1 text-sm text-indigo-600 truncate font-mono">{boardUrl}</span>
+                <span className="flex-1 text-sm truncate font-mono" style={{ color: "var(--accent)" }}>{boardUrl}</span>
                 <button
                   onClick={() => copyText(boardUrl, "board")}
-                  className="shrink-0 px-3 py-1 rounded-full bg-indigo-50 text-indigo-600 text-xs font-medium hover:bg-indigo-100 transition-colors"
+                  className="shrink-0 px-3 py-1 rounded-full text-xs font-medium transition-colors"
+                  style={{ background: "var(--accent-light)", color: "var(--accent)" }}
                 >
                   {copied === "board" ? "Copied!" : "Copy"}
                 </button>
@@ -441,10 +526,11 @@ export default function NewBoardPage() {
             <div className="bg-white rounded-2xl border p-4 text-left" style={{ borderColor: "var(--border)" }}>
               <p className="text-xs font-semibold text-gray-400 uppercase mb-1.5">Public Share URL</p>
               <div className="flex items-center gap-2">
-                <span className="flex-1 text-sm text-pink-600 truncate font-mono">{shareUrl}</span>
+                <span className="flex-1 text-sm truncate font-mono" style={{ color: "var(--muted)" }}>{shareUrl}</span>
                 <button
                   onClick={() => copyText(shareUrl, "share")}
-                  className="shrink-0 px-3 py-1 rounded-full bg-pink-50 text-pink-600 text-xs font-medium hover:bg-pink-100 transition-colors"
+                  className="shrink-0 px-3 py-1 rounded-full text-xs font-medium transition-opacity hover:opacity-80"
+                  style={{ background: "var(--accent)", color: "#fff" }}
                 >
                   {copied === "share" ? "Copied!" : "Copy"}
                 </button>
@@ -456,7 +542,7 @@ export default function NewBoardPage() {
             <button
               onClick={() => router.push(`/board/${created.id}`)}
               className="w-full py-3 rounded-2xl text-white font-bold transition-opacity hover:opacity-90"
-              style={{ background: "linear-gradient(135deg, #6366f1, #ec4899)" }}
+              style={{ background: "var(--accent)" }}
             >
               View Board →
             </button>

@@ -68,7 +68,7 @@ export default function SharedBoardPage() {
         <p className="text-5xl">🔍</p>
         <h1 className="text-2xl font-bold text-gray-800">Board not found</h1>
         <p className="text-gray-500">This link may have expired or never existed.</p>
-        <a href="https://cheers-from-applied.vercel.app" className="text-indigo-600 hover:underline text-sm mt-2">← Go home</a>
+        <a href="/" className="text-sm mt-2" style={{ color: "var(--accent)" }}>← Go home</a>
       </div>
     );
   }
@@ -129,10 +129,10 @@ export default function SharedBoardPage() {
           {board.posts.map((post) => (
             <div key={post.id} className="break-inside-avoid mb-4">
               {post.type === "manager_note" && (
-                <div className="rounded-2xl p-5 bg-gradient-to-br from-indigo-50 to-purple-50 border border-indigo-100 shadow-sm">
-                  <p className="text-sm font-semibold text-indigo-700 mb-2">📌 Manager note</p>
+                <div className="rounded-2xl p-5 shadow-sm" style={{ background: "var(--accent-light)", border: "1px solid var(--border)" }}>
+                  <p className="text-sm font-semibold mb-2" style={{ color: "var(--accent)" }}>📌 Manager note</p>
                   <p className="text-gray-800 text-sm leading-relaxed">{post.message}</p>
-                  <p className="text-xs text-gray-400 mt-3">— {post.author_name}</p>
+                  <p className="text-xs text-gray-400 mt-3">{post.author_name}</p>
                 </div>
               )}
               {(post.type === "photo" || post.type === "gif") && (
@@ -145,7 +145,7 @@ export default function SharedBoardPage() {
                       className="w-full object-cover"
                     />
                   )}
-                  <p className="text-xs text-gray-500 px-3 py-2">— {post.author_name}</p>
+                  <p className="text-xs text-gray-500 px-3 py-2">{post.author_name}</p>
                 </div>
               )}
               {post.type === "audio" && (
@@ -154,7 +154,7 @@ export default function SharedBoardPage() {
                   {post.audio_url && (
                     <audio controls className="w-full h-8" src={post.audio_url} />
                   )}
-                  <p className="text-xs text-gray-400 mt-2">— {post.author_name}</p>
+                  <p className="text-xs text-gray-400 mt-2">{post.author_name}</p>
                 </div>
               )}
               {post.type === "text" && (
@@ -181,8 +181,9 @@ export default function SharedBoardPage() {
       <footer className="border-t border-gray-200 bg-white py-6 text-center flex flex-col items-center gap-1">
         <p className="text-sm text-gray-500">Made with ❤️ at Applied</p>
         <a
-          href="https://cheers-from-applied.vercel.app"
-          className="text-indigo-600 hover:underline text-sm font-medium"
+          href="/"
+          className="text-sm font-medium hover:underline"
+          style={{ color: "var(--accent)" }}
           target="_blank"
           rel="noopener noreferrer"
         >

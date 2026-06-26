@@ -16,6 +16,7 @@ interface Post {
   author_avatar_color: string; message: string | null; gif_url: string | null;
   gif_title: string | null; photo_url: string | null; audio_url: string | null;
   reaction: string | null; is_manager_note: number; created_at: string;
+  values_tag: string | null;
 }
 interface Gift {
   id: string; board_id: string; from_name: string; from_email: string;
@@ -224,7 +225,7 @@ function PostTile({ post }: { post: Post }) {
   if (post.is_manager_note) {
     return (
       <div className="relative rounded-2xl p-5 text-white break-inside-avoid mb-4"
-        style={{ background: "linear-gradient(135deg,#060E27,#1557FF)" }}>
+        style={{ background: "var(--accent)" }}>
         <span className="absolute top-3 right-3 text-lg">📌</span>
         <div className="flex items-center gap-2 mb-3">
           <Avatar name={post.author_name} color="rgba(255,255,255,0.25)" size={8} />
@@ -282,10 +283,16 @@ function PostTile({ post }: { post: Post }) {
     <div className="rounded-2xl bg-white p-4 shadow-sm break-inside-avoid mb-4" style={{ border: "1px solid var(--border)" }}>
       <div className="flex items-center gap-2 mb-2">
         <Avatar name={post.author_name} color={post.author_avatar_color} size={7} />
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <p className="text-sm font-semibold truncate" style={{ color: "var(--text)" }}>{post.author_name}</p>
           <p className="text-xs" style={{ color: "var(--muted)" }}>{fmtDate(post.created_at)}</p>
         </div>
+        {post.values_tag && (
+          <span className="text-[10px] font-medium px-2 py-0.5 rounded-full flex-shrink-0"
+            style={{ background: "var(--accent-light)", color: "var(--accent)" }}>
+            {post.values_tag}
+          </span>
+        )}
       </div>
       {post.message && <p className="text-sm leading-relaxed mt-1" style={{ color: "var(--text)" }}>{post.message}</p>}
       {post.reaction && <p className="mt-2 text-xl">{post.reaction}</p>}
@@ -311,6 +318,12 @@ function CheerSnippet({ post }: { post: Post }) {
           <p className="text-sm font-semibold truncate" style={{ color: "var(--text)" }}>{post.author_name}</p>
           <p className="text-xs" style={{ color: "var(--muted)" }}>{fmtDate(post.created_at)}</p>
         </div>
+        {post.values_tag && (
+          <span className="text-[10px] font-medium px-2 py-0.5 rounded-full flex-shrink-0"
+            style={{ background: "var(--accent-light)", color: "var(--accent)" }}>
+            {post.values_tag}
+          </span>
+        )}
         {mediaType && (
           <span className="text-base flex-shrink-0" title={mediaType === "📷" ? "Photo" : mediaType === "🎞" ? "GIF" : "Voice"}>
             {mediaType}
@@ -362,6 +375,7 @@ export default function BoardPage() {
   const [recSeconds, setRecSeconds] = useState(0);
   const [authorName, setAuthorName] = useState("");
   const [authorEmail, setAuthorEmail] = useState("");
+  const [valueTag, setValueTag] = useState("");
   const [posting, setPosting] = useState(false);
   const mediaRecRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<BlobPart[]>([]);
@@ -460,6 +474,7 @@ export default function BoardPage() {
     if (selectedGif) { body.gif_url = selectedGif.url; body.gif_title = selectedGif.title; }
     if (photoData) body.photo_url = photoData;
     if (audio_url) body.audio_url = audio_url;
+    if (valueTag) body.values_tag = valueTag;
 
     const res = await fetch(`/api/boards/${id}/posts`, {
       method: "POST",
@@ -469,7 +484,7 @@ export default function BoardPage() {
     if (res.ok) {
       confetti({ particleCount: 50, spread: 60, origin: { y: 0.6 }, colors: ["#1557FF","#93B4FF","#0A3FD4","#ffffff"] });
       setMessage(""); setReaction(""); setSelectedGif(null); setPhotoData(null);
-      setAudioBlob(null); setAudioUrl(null); setTab("text");
+      setAudioBlob(null); setAudioUrl(null); setTab("text"); setValueTag("");
       await fetchBoard();
     }
     setPosting(false);
@@ -562,7 +577,7 @@ export default function BoardPage() {
           <div className="flex-1 min-w-0">
             {/* Event collation header */}
             <div className="rounded-2xl p-5 mb-5 flex items-center gap-4"
-              style={{ background: "var(--navy)", color: "#fff" }}>
+              style={{ background: "var(--accent)", color: "#fff" }}>
               <div className="text-4xl">{TYPE_EMOJI[board.type] ?? "🎉"}</div>
               <div className="flex-1 min-w-0">
                 <p className="font-bold text-base truncate">{board.title}</p>
@@ -776,8 +791,25 @@ export default function BoardPage() {
                   </div>
                 )}
 
+                {/* Value badge — optional */}
+                <div className="pt-2" style={{ borderTop: "1px solid var(--border)" }}>
+                  <p className="text-xs mb-1.5" style={{ color: "var(--muted)" }}>Tag a value <span className="opacity-60">(optional)</span></p>
+                  <div className="flex gap-1.5 flex-wrap">
+                    {["Win Together", "Be Bold", "Move with Urgency"].map(v => (
+                      <button key={v} type="button"
+                        onClick={() => setValueTag(valueTag === v ? "" : v)}
+                        className="px-2.5 py-1 rounded-full text-xs font-medium transition-all"
+                        style={valueTag === v
+                          ? { background: "var(--accent)", color: "#fff" }
+                          : { background: "var(--accent-light)", color: "var(--accent)" }}>
+                        {v}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
                 {/* Author + Post */}
-                <div className="pt-2 space-y-2" style={{ borderTop: "1px solid var(--border)" }}>
+                <div className="space-y-2">
                   <input value={authorName} onChange={e => setAuthorName(e.target.value)}
                     placeholder="Your name (required)"
                     className="w-full text-sm rounded-xl px-3 py-2 focus:outline-none"
@@ -807,7 +839,7 @@ export default function BoardPage() {
           <div className="bg-white rounded-2xl p-5 shadow-sm" style={{ border: "1px solid var(--border)" }}>
             <p className="font-semibold mb-3" style={{ color: "var(--text)" }}>📌 Manager Note</p>
             {managerNotePost ? (
-              <div className="rounded-xl p-4 text-white text-sm" style={{ background: "linear-gradient(135deg,#060E27,#1557FF)" }}>
+              <div className="rounded-xl p-4 text-white text-sm" style={{ background: "var(--accent)" }}>
                 {managerNotePost.message}
               </div>
             ) : (
@@ -897,7 +929,7 @@ export default function BoardPage() {
         <div className="max-w-2xl mx-auto px-4 py-6 space-y-6">
           {/* Hero */}
           <div className="relative rounded-3xl overflow-hidden p-8 text-white text-center"
-            style={{ background: "linear-gradient(135deg,#060E27 0%,#1557FF 100%)" }}>
+            style={{ background: "var(--accent)" }}>
             <div className="mx-auto mb-4 rounded-full flex items-center justify-center text-3xl font-bold bg-white/20"
               style={{ width: 80, height: 80 }}>
               {initials(board.honoree_name)}
@@ -954,7 +986,7 @@ export default function BoardPage() {
             {posts.length === 0 && (
               <div className="text-center py-10" style={{ color: "var(--muted)" }}>
                 <p className="text-3xl mb-2">📭</p>
-                <p className="text-sm">No messages yet — share the board link!</p>
+                <p className="text-sm">No messages yet. Share the board link!</p>
               </div>
             )}
           </div>
