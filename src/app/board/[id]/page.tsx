@@ -1,221 +1,332 @@
 "use client";
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
+import confetti from "canvas-confetti";
 
+// ─── Types ───────────────────────────────────────────────────────────────────
 interface Board {
-  id: string; honoree_name: string; honoree_email: string; honoree_avatar_color: string;
-  type: string; title: string; description: string; values_tag: string;
-  expires_at: string; requires_gift_approval: number; gift_manager_email: string;
-  share_token: string; public_share_enabled: number;
+  id: string; title: string; honoree_name: string; honoree_email: string;
+  honoree_avatar_color: string; type: string; description: string;
+  milestone_date: string; values_tag: string; is_private: number;
+  share_token: string; requires_gift_approval: number; gift_manager_email: string;
+  status: string; created_by: string; created_by_name: string; expires_at: string;
 }
 interface Post {
   id: string; board_id: string; author_name: string; author_email: string;
-  author_avatar_color: string; message: string; gif_url: string; gif_title: string;
-  photo_url: string; audio_url: string; reaction: string; is_manager_note: number; created_at: string;
+  author_avatar_color: string; message: string | null; gif_url: string | null;
+  gif_title: string | null; photo_url: string | null; audio_url: string | null;
+  reaction: string | null; is_manager_note: number; created_at: string;
 }
 interface Gift {
   id: string; board_id: string; from_name: string; from_email: string;
-  gift_type: string; amount: number; note: string; status: string; workday_balance: number;
+  gift_type: string; amount: number; note: string | null; status: string;
+  approved_by: string | null; workday_balance: number | null; created_at: string;
 }
-interface Badge { id: number; badge_type: string; person_name: string; reason: string; awarded_at: string; }
+interface Badge {
+  id: string; person_email: string; person_name: string; badge_type: string;
+  board_id: string; reason: string; awarded_at: string;
+}
 
-const TYPE_EMOJI: Record<string, string> = {
-  birthday: "🎂", wedding: "💍", new_baby: "👶", work_anniversary: "🥂",
-  promotion: "🚀", get_well: "💐", new_hire: "👋", personal_achievement: "🌟",
-};
+// ─── Constants ───────────────────────────────────────────────────────────────
+const EXPECTED_TEAM = ["Ali Chen","Bree Santos","Carlos Diaz","Dani Park","Erin Walsh","Femi Okafor","Grace Liu","Hana Morita"];
 
 const GIF_SETS: Record<string, string[]> = {
   birthday: [
     "https://media.giphy.com/media/g5R9dok94mrIvplmZd/giphy.gif",
-    "https://media.giphy.com/media/ZdUnQS4AXEl96/giphy.gif",
-    "https://media.giphy.com/media/5UZmkTfmHfAhfNxqhj/giphy.gif",
+    "https://media.giphy.com/media/26tOZ42Mg6pbTUPHW/giphy.gif",
     "https://media.giphy.com/media/artj92V8o75VPL7AeQ/giphy.gif",
-    "https://media.giphy.com/media/MFiOBkDiIsBtdBXlzJ/giphy.gif",
-    "https://media.giphy.com/media/26tPghhTrRKdZZ3aU/giphy.gif",
+    "https://media.giphy.com/media/3ohs4wE4DqXw84xAMo/giphy.gif",
+    "https://media.giphy.com/media/l3q2LH45XElELRzRm/giphy.gif",
+    "https://media.giphy.com/media/5P0ddDiKzMwIKQ7Bmq/giphy.gif",
   ],
   wedding: [
-    "https://media.giphy.com/media/3oEdva9BUHPIs2SkGk/giphy.gif",
-    "https://media.giphy.com/media/l4FGw4d101Sa0pGTe/giphy.gif",
-    "https://media.giphy.com/media/26BRzQS5HXcEWmc8E/giphy.gif",
-    "https://media.giphy.com/media/l0MYNocHNXswfzEaA/giphy.gif",
-    "https://media.giphy.com/media/l4KibWpBGWchSqCRy/giphy.gif",
-    "https://media.giphy.com/media/xUPGcxpCV81hciSfZe/giphy.gif",
+    "https://media.giphy.com/media/l0MYt5jPR6QX5pnqM/giphy.gif",
+    "https://media.giphy.com/media/xT0GqtpF1NWd9VbstO/giphy.gif",
+    "https://media.giphy.com/media/l3q2zbskZp2j8wniE/giphy.gif",
+    "https://media.giphy.com/media/26uf9QPzzlKPvQG5y/giphy.gif",
+    "https://media.giphy.com/media/3o7abKhOpu0NwenH3O/giphy.gif",
+    "https://media.giphy.com/media/26BRrSvJeNeAxa4La/giphy.gif",
   ],
   new_baby: [
-    "https://media.giphy.com/media/26BRBKqUiq586bRVm/giphy.gif",
-    "https://media.giphy.com/media/l0HlFkBCMoFCRdL5m/giphy.gif",
-    "https://media.giphy.com/media/3oEdvb6OiAm2kNYZ9K/giphy.gif",
-    "https://media.giphy.com/media/d31w24psGYeekCZy/giphy.gif",
-    "https://media.giphy.com/media/3oEjHBGBEJfKkTUkne/giphy.gif",
-    "https://media.giphy.com/media/26hkhPJ5hmdD87HYA/giphy.gif",
+    "https://media.giphy.com/media/26xBI73gWquCBBCDe/giphy.gif",
+    "https://media.giphy.com/media/3oEdva9BUHPIs2SkGk/giphy.gif",
+    "https://media.giphy.com/media/l0MYEqEzwMWFCg8rm/giphy.gif",
+    "https://media.giphy.com/media/3o7abBP0nMjrdIgSD2/giphy.gif",
+    "https://media.giphy.com/media/26ufp9EIXL5RLKJK8/giphy.gif",
+    "https://media.giphy.com/media/xT9IgG50Lg7rusUxVm/giphy.gif",
   ],
   work_anniversary: [
-    "https://media.giphy.com/media/l0MYEqEzwMWFCg8rm/giphy.gif",
-    "https://media.giphy.com/media/26u4lOMA8JKSnL9Uk/giphy.gif",
-    "https://media.giphy.com/media/xUPGcxpCV81hciSfZe/giphy.gif",
-    "https://media.giphy.com/media/3oEdva9BUHPIs2SkGk/giphy.gif",
-    "https://media.giphy.com/media/g5R9dok94mrIvplmZd/giphy.gif",
-    "https://media.giphy.com/media/artj92V8o75VPL7AeQ/giphy.gif",
+    "https://media.giphy.com/media/3oEdvd7Fz3PzN4fcHK/giphy.gif",
+    "https://media.giphy.com/media/26ufdipQqU2lhNA4g/giphy.gif",
+    "https://media.giphy.com/media/3oKIPf3C7HqqYBVcCk/giphy.gif",
+    "https://media.giphy.com/media/l0HlBO7eyXzSZkJri/giphy.gif",
+    "https://media.giphy.com/media/3o6Zt481isNVuQI1l6/giphy.gif",
+    "https://media.giphy.com/media/26BRBKqUiq586bRVm/giphy.gif",
   ],
   promotion: [
-    "https://media.giphy.com/media/l0MYEqEzwMWFCg8rm/giphy.gif",
-    "https://media.giphy.com/media/Is1O1TWV0LEJi/giphy.gif",
-    "https://media.giphy.com/media/3o6Zt9IUqXP4hBPwYE/giphy.gif",
-    "https://media.giphy.com/media/26u4lOMA8JKSnL9Uk/giphy.gif",
-    "https://media.giphy.com/media/111ebonMs90YLu/giphy.gif",
-    "https://media.giphy.com/media/xUPGGDNsLvqsBOhuU0/giphy.gif",
+    "https://media.giphy.com/media/3oz8xAFtqoOUUrsh7W/giphy.gif",
+    "https://media.giphy.com/media/26tOZ42Mg6pbTUPHW/giphy.gif",
+    "https://media.giphy.com/media/3o7abKhOpu0NwenH3O/giphy.gif",
+    "https://media.giphy.com/media/l0HlBO7eyXzSZkJri/giphy.gif",
+    "https://media.giphy.com/media/xT9IgG50Lg7rusUxVm/giphy.gif",
+    "https://media.giphy.com/media/26BRrSvJeNeAxa4La/giphy.gif",
   ],
   get_well: [
-    "https://media.giphy.com/media/l0HlFkBCMoFCRdL5m/giphy.gif",
-    "https://media.giphy.com/media/l4FGw4d101Sa0pGTe/giphy.gif",
-    "https://media.giphy.com/media/3oEdv5e5Zd7x7Rdsc0/giphy.gif",
-    "https://media.giphy.com/media/5UZmkTfmHfAhfNxqhj/giphy.gif",
-    "https://media.giphy.com/media/26BRBKqUiq586bRVm/giphy.gif",
-    "https://media.giphy.com/media/d31w24psGYeekCZy/giphy.gif",
+    "https://media.giphy.com/media/l0MYt5jPR6QX5pnqM/giphy.gif",
+    "https://media.giphy.com/media/3ohs4wE4DqXw84xAMo/giphy.gif",
+    "https://media.giphy.com/media/5P0ddDiKzMwIKQ7Bmq/giphy.gif",
+    "https://media.giphy.com/media/xT0GqtpF1NWd9VbstO/giphy.gif",
+    "https://media.giphy.com/media/3oEdva9BUHPIs2SkGk/giphy.gif",
+    "https://media.giphy.com/media/l0MYEqEzwMWFCg8rm/giphy.gif",
   ],
   new_hire: [
-    "https://media.giphy.com/media/XDAY1NNG2VvobAp9o1/giphy.gif",
-    "https://media.giphy.com/media/l1J9u3TZfpmeDLkD6/giphy.gif",
-    "https://media.giphy.com/media/3oz8xRF0v9WMAUVLNK/giphy.gif",
-    "https://media.giphy.com/media/xT9DPpf0zTqRASyzTi/giphy.gif",
-    "https://media.giphy.com/media/26ufnwz3wDUli7GU0/giphy.gif",
-    "https://media.giphy.com/media/Rl9Yqavnv97W0/giphy.gif",
+    "https://media.giphy.com/media/26tOZ42Mg6pbTUPHW/giphy.gif",
+    "https://media.giphy.com/media/artj92V8o75VPL7AeQ/giphy.gif",
+    "https://media.giphy.com/media/3oKIPf3C7HqqYBVcCk/giphy.gif",
+    "https://media.giphy.com/media/26ufdipQqU2lhNA4g/giphy.gif",
+    "https://media.giphy.com/media/3oEdvd7Fz3PzN4fcHK/giphy.gif",
+    "https://media.giphy.com/media/xT9IgG50Lg7rusUxVm/giphy.gif",
   ],
   personal_achievement: [
-    "https://media.giphy.com/media/l0MYEqEzwMWFCg8rm/giphy.gif",
-    "https://media.giphy.com/media/111ebonMs90YLu/giphy.gif",
-    "https://media.giphy.com/media/3o6Zt9IUqXP4hBPwYE/giphy.gif",
-    "https://media.giphy.com/media/26u4lOMA8JKSnL9Uk/giphy.gif",
-    "https://media.giphy.com/media/g5R9dok94mrIvplmZd/giphy.gif",
-    "https://media.giphy.com/media/Is1O1TWV0LEJi/giphy.gif",
+    "https://media.giphy.com/media/3oz8xAFtqoOUUrsh7W/giphy.gif",
+    "https://media.giphy.com/media/26BRBKqUiq586bRVm/giphy.gif",
+    "https://media.giphy.com/media/3o6Zt481isNVuQI1l6/giphy.gif",
+    "https://media.giphy.com/media/l3q2zbskZp2j8wniE/giphy.gif",
+    "https://media.giphy.com/media/26uf9QPzzlKPvQG5y/giphy.gif",
+    "https://media.giphy.com/media/3o7abBP0nMjrdIgSD2/giphy.gif",
   ],
 };
 
-const REACTIONS = ["🎉","❤️","🔥","👏","🥳","🙌","😍","💪","🫶","🌟"];
-
-const BADGE_META: Record<string, { icon: string; color: string }> = {
-  cheer_champion: { icon: "🏆", color: "bg-purple-100 text-purple-700" },
-  generous_soul: { icon: "💝", color: "bg-pink-100 text-pink-700" },
-  birthday_star: { icon: "⭐", color: "bg-yellow-100 text-yellow-700" },
-  rising_star: { icon: "🚀", color: "bg-violet-100 text-violet-700" },
-  team_player: { icon: "🤝", color: "bg-blue-100 text-blue-700" },
-  heartwarmer: { icon: "❤️", color: "bg-red-100 text-red-700" },
-  welcome_wagon: { icon: "👋", color: "bg-teal-100 text-teal-700" },
-};
-
-// Category-specific suggested messages
 const AUTO_MESSAGES: Record<string, { label: string; text: string }[]> = {
   birthday: [
-    { label: "🎂 Quick cheer", text: "Happy birthday! 🎂 Hope your day is as amazing as you are!" },
-    { label: "🌟 Personal touch", text: "Another lap around the sun with you on the team — lucky us! Wishing you a brilliant birthday. 🥳" },
-    { label: "💪 Team shoutout", text: "You make this team better every single day. Happy birthday — today is all about YOU! 🎉" },
-    { label: "😄 Light & fun", text: "Heard it's your birthday... officially mandatory that you do zero work today. Orders from the team. 🎂😄" },
-    { label: "❤️ Heartfelt", text: "Working with you is genuinely one of the highlights of my week. Happy birthday — hope it's a great one. ❤️" },
-    { label: "🎊 Group energy", text: "The whole team is sending you so much love today! Celebrate big — you deserve it. 🎊🎂🥂" },
+    { label: "Warm wish", text: "Wishing you a wonderful birthday filled with joy and laughter!" },
+    { label: "Team love", text: "The whole team is cheering for you today. Happy Birthday!" },
+    { label: "Fun one", text: "Another year wiser, another year more awesome. Happy Birthday!" },
+    { label: "Heartfelt", text: "So grateful to have you on the team. Hope your day is amazing!" },
+    { label: "Short & sweet", text: "Happy Birthday! Hope it's a great one." },
+    { label: "Milestone", text: "Celebrating you today and every day. Happy Birthday!" },
   ],
   wedding: [
-    { label: "💍 Big day cheer", text: "Congratulations on your wedding! Wishing you a lifetime of love, laughter, and adventure together. 💍" },
-    { label: "🥂 Toast moment", text: "Here's to a love story worth celebrating! So happy for you both. 🥂💕" },
-    { label: "🌸 Heartfelt", text: "Watching you step into this new chapter is such a joy. Congratulations from all of us! 🌸" },
-    { label: "🎊 Team love", text: "The whole Applied team is cheering for you! May your marriage be as strong and bright as your work here. 🎊❤️" },
-    { label: "😄 Fun & warm", text: "We promise we won't email you on your honeymoon. (Maybe.) Congratulations! 💍😄" },
-    { label: "💐 Simple & sweet", text: "Wishing you every happiness as you start this beautiful new chapter together. Congrats! 💐" },
+    { label: "Congratulations", text: "Wishing you both a lifetime of happiness and love. Congratulations!" },
+    { label: "Team toast", text: "The whole team is raising a glass to you both. Cheers!" },
+    { label: "Joy-filled", text: "May your marriage be filled with laughter, love, and endless adventures!" },
+    { label: "Heartfelt", text: "So happy for you both. This is just the beginning of something beautiful." },
+    { label: "Classic", text: "Congratulations on your wedding! Wishing you all the best." },
+    { label: "Work fam", text: "You're gaining a partner and keeping your work family. Congrats!" },
   ],
   new_baby: [
-    { label: "👶 Welcome, baby!", text: "Congratulations on your new arrival! What an incredible milestone — welcome to the world, little one! 👶🎉" },
-    { label: "😴 Fun nudge", text: "Sleep is overrated anyway, right? 😄 Congratulations on the newest team member in your family! 👶" },
-    { label: "❤️ Warm & genuine", text: "Your family just grew and our hearts grew with it. Congratulations — enjoy every moment. ❤️" },
-    { label: "🌟 Life milestone", text: "This is one of life's most beautiful moments. Sending so much love to your growing family! 🌟👶" },
-    { label: "🍼 Light & loving", text: "A brand new tiny human — congratulations! Applied just became the best company ever for future talent. 😂🍼" },
-    { label: "🌸 Simply sweet", text: "Wishing you rest, joy, and all the wonder that comes with welcoming a new baby. Congrats! 🌸" },
+    { label: "Welcome", text: "Welcome to the world, little one! Congratulations to the whole family!" },
+    { label: "Team hug", text: "The team is over the moon for you. Congrats on the new arrival!" },
+    { label: "Joyful", text: "A new baby means new adventures. Congrats and enjoy every moment!" },
+    { label: "Heartfelt", text: "So excited for this new chapter of your life. Congratulations!" },
+    { label: "Classic", text: "Congratulations on your new baby! Wishing your family all the best." },
+    { label: "Warm", text: "Sending so much love to your growing family. Congratulations!" },
   ],
   work_anniversary: [
-    { label: "🥂 Milestone toast", text: "Here's to another year of you making Applied better in every way. Thank you for everything you bring! 🥂" },
-    { label: "🌟 Impact shoutout", text: "The impact you've had here doesn't go unnoticed. So glad you're part of this team. Happy anniversary! 🌟" },
-    { label: "🚀 Future forward", text: "Years in and still showing everyone how it's done — here's to many more! 🚀" },
-    { label: "❤️ Personal", text: "Couldn't imagine Applied without you. Thank you for choosing to stay and grow with us. ❤️" },
-    { label: "😄 Fun & warm", text: "You've officially survived another year of standups, sprint reviews, and Slack notifications. Legend. 😄🥂" },
-    { label: "🎊 Team cheers", text: "The whole team raises a glass to you today. Thanks for being exactly who you are. 🎊" },
+    { label: "Milestone", text: "What a journey it's been! Thank you for all you bring to the team." },
+    { label: "Grateful", text: "Year after year, you show up and make a difference. We're lucky to have you." },
+    { label: "Celebratory", text: "Another year of awesomeness! Here's to many more together." },
+    { label: "Reflective", text: "It's amazing what we've built together. Happy work anniversary!" },
+    { label: "Fun", text: "Still here, still crushing it. Happy work anniversary!" },
+    { label: "Team love", text: "The team wouldn't be the same without you. Happy anniversary!" },
   ],
   promotion: [
-    { label: "🚀 Deserved!", text: "SO deserved — congratulations!! You've earned every bit of this. 🚀" },
-    { label: "🏆 Recognition", text: "You've consistently shown up, leveled up, and lifted everyone around you. This is just the beginning. 🏆" },
-    { label: "💪 Inspired", text: "Watching you grow here has been truly inspiring. Congratulations on the promotion! 💪" },
-    { label: "🎊 Team proud", text: "The whole team is so proud of you. Can't wait to see what you build from here. 🎊🚀" },
-    { label: "😄 Playful", text: "Called it months ago. Congrats — now comes the part where you pretend the title doesn't matter but we all know it does. 😄🏆" },
-    { label: "🌟 Meaningful", text: "This promotion reflects not just your skills but your character. Congrats — it means a lot to us all. 🌟" },
+    { label: "Congrats", text: "This is so well deserved. Congratulations on the promotion!" },
+    { label: "Team pride", text: "We always knew you'd get here. So proud of you!" },
+    { label: "Inspired", text: "You inspire us all with your dedication. Congrats on leveling up!" },
+    { label: "Excited", text: "The next chapter is going to be incredible. Congratulations!" },
+    { label: "Brief", text: "Congrats on the promotion! Can't wait to see what you do next." },
+    { label: "Warm", text: "Nobody deserves this more. Wishing you all the best in your new role!" },
   ],
   get_well: [
-    { label: "💐 Warm wishes", text: "Sending you so much warmth and care. Rest up and know the team is thinking of you. 💐" },
-    { label: "❤️ We miss you", text: "The office (and Slack) is quieter without you. Get well soon — we miss your energy! ❤️" },
-    { label: "😄 Light & uplifting", text: "Doctor's orders: rest, hydrate, and let us handle things while you recover. 😄 Feel better soon!" },
-    { label: "🌟 Strength", text: "You're stronger than you know. Wishing you a smooth and speedy recovery. We're rooting for you! 🌟" },
-    { label: "🍵 Simple & caring", text: "Take all the time you need. We're here whenever you're ready. Get well soon! 🍵" },
-    { label: "🌸 Gentle", text: "Sending gentle healing vibes your way. No rushing — your health comes first always. 🌸" },
+    { label: "Caring", text: "Sending healing thoughts your way. Take good care of yourself!" },
+    { label: "Team support", text: "The whole team is rooting for a speedy recovery. We miss you!" },
+    { label: "Warm", text: "Rest up and get better soon. We'll hold things down until you're back." },
+    { label: "Hopeful", text: "Wishing you strength and a swift recovery. Thinking of you!" },
+    { label: "Gentle", text: "Take all the time you need to heal. We'll be here when you're ready." },
+    { label: "Supportive", text: "Sending you good energy and warm wishes for a quick recovery." },
   ],
   new_hire: [
-    { label: "👋 Welcome aboard!", text: "Welcome aboard! So excited to have you here — the team just leveled up. 👋🎉" },
-    { label: "🎉 Team energy", text: "You're going to love it here. Applied is full of people who genuinely care. Welcome! 🎉" },
-    { label: "🙌 Excited to work together", text: "Can't wait to work together and see what we build. Welcome to the team! 🙌" },
-    { label: "🌟 Big things ahead", text: "Big things ahead for Applied and you're part of why. Welcome! 🌟" },
-    { label: "😄 Fun welcome", text: "Warning: this team has very strong opinions about GIF usage in Slack. You'll fit right in. 😄 Welcome!" },
-    { label: "❤️ Heartfelt", text: "We've been looking forward to you joining for weeks. Welcome — so glad you're here. ❤️" },
+    { label: "Welcome", text: "Welcome to Applied! So excited to have you on the team." },
+    { label: "Team hug", text: "The team has been looking forward to meeting you. Welcome!" },
+    { label: "Warm", text: "You're going to love it here. Welcome aboard!" },
+    { label: "Excited", text: "We can't wait to see everything you bring to the table. Welcome!" },
+    { label: "Fun", text: "Fair warning: this team is a little extra. Welcome to the family!" },
+    { label: "Heartfelt", text: "So glad you chose Applied. Looking forward to building great things together." },
   ],
   personal_achievement: [
-    { label: "🌟 Kudos!", text: "This achievement is a reflection of everything you've put in. So proud of you! 🌟" },
-    { label: "🏆 Earned it", text: "You set the goal, did the work, and made it happen. That's all you. Congrats! 🏆" },
-    { label: "💪 Inspired by you", text: "Genuinely inspired by what you've accomplished. Keep going — there's so much more ahead. 💪" },
-    { label: "🎊 Team celebrates", text: "Your wins are our wins. The team is celebrating right along with you. 🎊🌟" },
-    { label: "😄 Light cheer", text: "And this is why we love having you on the team. Congrats on crushing it! 😄" },
-    { label: "❤️ Personal", text: "Beyond the milestone — watching you pursue this with such dedication has been a joy. Congrats. ❤️" },
+    { label: "Proud", text: "This is a huge deal and you should be so proud. Congrats!" },
+    { label: "Inspired", text: "You set a goal and you crushed it. That's incredibly inspiring." },
+    { label: "Team cheer", text: "The team is cheering loud for you. What an achievement!" },
+    { label: "Motivating", text: "This is what dedication looks like. Congratulations on your achievement!" },
+    { label: "Brief", text: "You did it! So happy for you. Well deserved." },
+    { label: "Warm", text: "It takes grit to reach this level. So proud of everything you've accomplished." },
   ],
 };
 
+const BADGE_META: Record<string, { icon: string; color: string; label: string }> = {
+  team_player:      { icon: "🤝", color: "#6366f1", label: "Team Player" },
+  hype_person:      { icon: "📣", color: "#ec4899", label: "Hype Person" },
+  culture_add:      { icon: "✨", color: "#f59e0b", label: "Culture Add" },
+  early_bird:       { icon: "🌅", color: "#10b981", label: "Early Bird" },
+  creative_spark:   { icon: "💡", color: "#8b5cf6", label: "Creative Spark" },
+  people_first:     { icon: "💛", color: "#f97316", label: "People First" },
+  milestone_maker:  { icon: "🏆", color: "#0ea5e9", label: "Milestone Maker" },
+};
+
+const REACTIONS = ["❤️","🎉","🙌","😂","🔥","😍","👏","💯","🥳","✨"];
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+function compressImage(file: File): Promise<string> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      const MAX = 800;
+      let w = img.width, h = img.height;
+      if (w > MAX) { h = Math.round(h * MAX / w); w = MAX; }
+      if (h > MAX) { w = Math.round(w * MAX / h); h = MAX; }
+      const canvas = document.createElement("canvas");
+      canvas.width = w; canvas.height = h;
+      const ctx = canvas.getContext("2d")!;
+      ctx.drawImage(img, 0, 0, w, h);
+      URL.revokeObjectURL(url);
+      resolve(canvas.toDataURL("image/jpeg", 0.75));
+    };
+    img.src = url;
+  });
+}
+
 function initials(name: string) {
-  return name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
+  return name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase();
 }
 
-function daysLeft(expiresAt: string) {
-  const diff = new Date(expiresAt).getTime() - Date.now();
-  return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
+function Avatar({ name, color, size = 8 }: { name: string; color: string; size?: number }) {
+  return (
+    <div className="rounded-full flex items-center justify-center text-white font-bold flex-shrink-0"
+      style={{ backgroundColor: color, width: size * 4, height: size * 4, fontSize: size * 1.5 }}>
+      {initials(name)}
+    </div>
+  );
 }
 
-const EXPECTED_TEAM = ["Jordan Smith","Maya Patel","Sam Lee","Alex Chen","Chris Wong","Yomi Ogbalaja"];
+function fmtDate(s: string) {
+  return new Date(s).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
 
+// ─── Post Tile ────────────────────────────────────────────────────────────────
+function PostTile({ post }: { post: Post }) {
+  if (post.is_manager_note) {
+    return (
+      <div className="relative rounded-2xl p-5 text-white break-inside-avoid mb-4"
+        style={{ background: "linear-gradient(135deg,#6366f1,#ec4899)" }}>
+        <span className="absolute top-3 right-3 text-lg">📌</span>
+        <div className="flex items-center gap-2 mb-3">
+          <Avatar name={post.author_name} color="rgba(255,255,255,0.3)" size={8} />
+          <div>
+            <p className="font-semibold text-sm">{post.author_name}</p>
+            <p className="text-xs opacity-70">Manager note</p>
+          </div>
+        </div>
+        <p className="text-sm leading-relaxed">{post.message}</p>
+        {post.reaction && <p className="mt-3 text-xl">{post.reaction}</p>}
+      </div>
+    );
+  }
+  if (post.photo_url) {
+    return (
+      <div className="rounded-2xl overflow-hidden bg-white shadow-sm break-inside-avoid mb-4">
+        <img src={post.photo_url} alt="Post photo" className="w-full object-cover max-h-64" />
+        <div className="flex items-center gap-2 p-3">
+          <Avatar name={post.author_name} color={post.author_avatar_color} size={7} />
+          <p className="text-sm font-medium text-gray-700">{post.author_name}</p>
+          {post.reaction && <span className="ml-auto text-lg">{post.reaction}</span>}
+        </div>
+      </div>
+    );
+  }
+  if (post.gif_url) {
+    return (
+      <div className="rounded-2xl overflow-hidden bg-white shadow-sm break-inside-avoid mb-4">
+        <img src={post.gif_url} alt={post.gif_title ?? "GIF"} className="w-full object-cover max-h-56" />
+        <div className="flex items-center gap-2 p-3">
+          <Avatar name={post.author_name} color={post.author_avatar_color} size={7} />
+          <p className="text-sm font-medium text-gray-700">{post.author_name}</p>
+          {post.reaction && <span className="ml-auto text-lg">{post.reaction}</span>}
+        </div>
+      </div>
+    );
+  }
+  if (post.audio_url) {
+    return (
+      <div className="rounded-2xl bg-indigo-50 p-4 break-inside-avoid mb-4 shadow-sm">
+        <div className="flex items-center gap-2 mb-3">
+          <span className="text-2xl">🎙</span>
+          <span className="text-sm font-medium text-indigo-700">Voice message</span>
+        </div>
+        <audio controls src={post.audio_url} className="w-full h-8" />
+        <div className="flex items-center gap-2 mt-3">
+          <Avatar name={post.author_name} color={post.author_avatar_color} size={7} />
+          <p className="text-sm font-medium text-gray-700">{post.author_name}</p>
+          <p className="text-xs text-gray-400 ml-auto">{fmtDate(post.created_at)}</p>
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div className="rounded-2xl bg-white p-4 shadow-sm break-inside-avoid mb-4">
+      <div className="flex items-center gap-2 mb-2">
+        <Avatar name={post.author_name} color={post.author_avatar_color} size={7} />
+        <div className="min-w-0">
+          <p className="text-sm font-semibold text-gray-800 truncate">{post.author_name}</p>
+          <p className="text-xs text-gray-400">{fmtDate(post.created_at)}</p>
+        </div>
+      </div>
+      {post.message && <p className="text-sm text-gray-700 leading-relaxed mt-1">{post.message}</p>}
+      {post.reaction && <p className="mt-2 text-xl">{post.reaction}</p>}
+    </div>
+  );
+}
+
+// ─── Main Page ────────────────────────────────────────────────────────────────
 export default function BoardPage() {
   const { id } = useParams<{ id: string }>();
   const searchParams = useSearchParams();
   const router = useRouter();
-  const view = (searchParams.get("view") as "board"|"manager"|"receiver") || "board";
+  const view = searchParams.get("view") ?? "board";
 
   const [board, setBoard] = useState<Board | null>(null);
   const [posts, setPosts] = useState<Post[]>([]);
   const [gifts, setGifts] = useState<Gift[]>([]);
   const [badges, setBadges] = useState<Badge[]>([]);
   const [loading, setLoading] = useState(true);
+  const confettiFired = useRef(false);
 
-  const [composerTab, setComposerTab] = useState<"text"|"gif"|"photo"|"audio">("text");
+  // Composer state
+  const [tab, setTab] = useState<"text" | "gif" | "photo" | "voice">("text");
   const [message, setMessage] = useState("");
   const [reaction, setReaction] = useState("");
+  const [selectedGif, setSelectedGif] = useState<{ url: string; title: string } | null>(null);
+  const [photoData, setPhotoData] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [recording, setRecording] = useState(false);
+  const [recSeconds, setRecSeconds] = useState(0);
   const [authorName, setAuthorName] = useState("");
   const [authorEmail, setAuthorEmail] = useState("");
-  const [selectedGif, setSelectedGif] = useState("");
-  const [photoDataUrl, setPhotoDataUrl] = useState("");
-  const [photoPreview, setPhotoPreview] = useState("");
-  const [submitting, setSubmitting] = useState(false);
+  const [posting, setPosting] = useState(false);
+  const mediaRecRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<BlobPart[]>([]);
+  const recTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Real audio recording
-  const [recording, setRecording] = useState(false);
-  const [recordTime, setRecordTime] = useState(0);
-  const [audioDataUrl, setAudioDataUrl] = useState("");
-  const [audioBlobUrl, setAudioBlobUrl] = useState("");
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const chunksRef = useRef<Blob[]>([]);
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const photoInputRef = useRef<HTMLInputElement>(null);
+  // Manager view state
+  const [managerNote, setManagerNote] = useState("");
+  const [savingNote, setSavingNote] = useState(false);
 
   const fetchBoard = useCallback(async () => {
     const res = await fetch(`/api/boards/${id}`);
+    if (!res.ok) return;
     const data = await res.json();
     setBoard(data.board);
     setPosts(data.posts);
@@ -224,502 +335,341 @@ export default function BoardPage() {
     setLoading(false);
   }, [id]);
 
-  useEffect(() => { fetchBoard(); }, [fetchBoard]);
+  useEffect(() => {
+    fetchBoard();
+  }, [fetchBoard]);
 
-  const gifs = board ? (GIF_SETS[board.type] ?? GIF_SETS.birthday) : GIF_SETS.birthday;
-  const autoMessages = board ? (AUTO_MESSAGES[board.type] ?? AUTO_MESSAGES.birthday) : AUTO_MESSAGES.birthday;
+  useEffect(() => {
+    if (!loading && !confettiFired.current) {
+      confettiFired.current = true;
+      setTimeout(() => confetti({ particleCount: 60, spread: 70, origin: { x: 0.2, y: 0.5 } }), 0);
+      setTimeout(() => confetti({ particleCount: 60, spread: 70, origin: { x: 0.8, y: 0.5 } }), 300);
+      setTimeout(() => confetti({ particleCount: 40, spread: 90, origin: { x: 0.5, y: 0.3 } }), 600);
+    }
+  }, [loading]);
 
-  function handlePhotoSelect(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      const result = ev.target?.result as string;
-      setPhotoDataUrl(result);
-      setPhotoPreview(result);
-      setComposerTab("text");
-    };
-    reader.readAsDataURL(file);
-  }
-
+  // ── Recording ─────────────────────────────────────────────────────────────
   async function startRecording() {
-    if (!navigator.mediaDevices) return alert("Microphone not available in this browser.");
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     const mr = new MediaRecorder(stream);
     chunksRef.current = [];
-    mr.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data); };
+    mr.ondataavailable = (e) => chunksRef.current.push(e.data);
     mr.onstop = () => {
       const blob = new Blob(chunksRef.current, { type: "audio/webm" });
-      const blobUrl = URL.createObjectURL(blob);
-      setAudioBlobUrl(blobUrl);
-      const reader = new FileReader();
-      reader.onload = (ev) => setAudioDataUrl(ev.target?.result as string);
-      reader.readAsDataURL(blob);
-      stream.getTracks().forEach((t) => t.stop());
+      setAudioBlob(blob);
+      setAudioUrl(URL.createObjectURL(blob));
+      stream.getTracks().forEach(t => t.stop());
     };
     mr.start();
-    mediaRecorderRef.current = mr;
+    mediaRecRef.current = mr;
     setRecording(true);
-    setRecordTime(0);
-    timerRef.current = setInterval(() => setRecordTime((t) => t + 1), 1000);
+    setRecSeconds(0);
+    let secs = 0;
+    recTimerRef.current = setInterval(() => {
+      secs++;
+      setRecSeconds(secs);
+      if (secs >= 60) {
+        clearInterval(recTimerRef.current!);
+        mr.stop();
+        setRecording(false);
+      }
+    }, 1000);
   }
 
   function stopRecording() {
-    mediaRecorderRef.current?.stop();
+    if (recTimerRef.current) clearInterval(recTimerRef.current);
+    mediaRecRef.current?.stop();
     setRecording(false);
-    if (timerRef.current) clearInterval(timerRef.current);
   }
 
+  // ── Photo handler ─────────────────────────────────────────────────────────
+  async function handlePhotoFile(file: File) {
+    if (!file.type.startsWith("image/")) return;
+    const compressed = await compressImage(file);
+    setPhotoData(compressed);
+  }
+
+  // ── Submit post ───────────────────────────────────────────────────────────
   async function submitPost() {
-    if (!authorName.trim()) return alert("Please enter your name");
-    const hasContent = message.trim() || selectedGif || photoDataUrl || audioDataUrl;
-    if (!hasContent) return alert("Add a message, GIF, photo, or voice note");
-    setSubmitting(true);
+    if (!authorName.trim()) return;
+    setPosting(true);
+    let audio_url: string | null = null;
+    if (audioBlob) {
+      const reader = new FileReader();
+      audio_url = await new Promise(res => {
+        reader.onload = () => res(reader.result as string);
+        reader.readAsDataURL(audioBlob);
+      });
+    }
+    const body: Record<string, unknown> = {
+      author_name: authorName.trim(),
+      author_email: authorEmail.trim() || null,
+      author_avatar_color: `hsl(${Math.floor(Math.random() * 360)},70%,50%)`,
+      reaction: reaction || null,
+    };
+    if (tab === "text" || (!selectedGif && !photoData && !audio_url)) {
+      body.message = message.trim() || null;
+    }
+    if (selectedGif) { body.gif_url = selectedGif.url; body.gif_title = selectedGif.title; }
+    if (photoData) body.photo_url = photoData;
+    if (audio_url) body.audio_url = audio_url;
+
+    const res = await fetch(`/api/boards/${id}/posts`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (res.ok) {
+      confetti({ particleCount: 50, spread: 60, origin: { y: 0.6 }, colors: ["#6366f1","#ec4899","#f59e0b"] });
+      setMessage(""); setReaction(""); setSelectedGif(null); setPhotoData(null);
+      setAudioBlob(null); setAudioUrl(null); setTab("text");
+      await fetchBoard();
+    }
+    setPosting(false);
+  }
+
+  // ── Manager note submit ───────────────────────────────────────────────────
+  async function submitManagerNote() {
+    if (!managerNote.trim()) return;
+    setSavingNote(true);
     await fetch(`/api/boards/${id}/posts`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        author_name: authorName,
-        author_email: authorEmail || null,
-        message: message || null,
-        gif_url: selectedGif || null,
-        photo_url: photoDataUrl || null,
-        audio_url: audioDataUrl || null,
-        reaction: reaction || null,
+        author_name: board?.gift_manager_email ?? "Manager",
+        author_avatar_color: "#6366f1",
+        message: managerNote.trim(),
+        is_manager_note: true,
       }),
     });
-    setMessage("");
-    setSelectedGif("");
-    setPhotoDataUrl("");
-    setPhotoPreview("");
-    setAudioDataUrl("");
-    setAudioBlobUrl("");
-    setReaction("");
+    setManagerNote("");
+    setSavingNote(false);
     await fetchBoard();
-    setSubmitting(false);
   }
 
-  async function handleGiftAction(giftId: string, action: "approve"|"reject") {
+  // ── Gift action ───────────────────────────────────────────────────────────
+  async function giftAction(giftId: string, action: "approve" | "reject") {
     await fetch(`/api/boards/${id}/gifts`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ giftId, action, approved_by: "Manager" }),
+      body: JSON.stringify({ giftId, action, approved_by: board?.gift_manager_email }),
     });
     await fetchBoard();
   }
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="text-center">
-          <div className="text-5xl mb-4 animate-bounce">🎉</div>
-          <p className="text-gray-500">Loading celebration...</p>
-        </div>
+  if (loading) return (
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 to-pink-50">
+      <div className="text-center">
+        <div className="text-4xl mb-3 animate-bounce">🎉</div>
+        <p className="text-gray-500">Loading the board…</p>
       </div>
-    );
-  }
+    </div>
+  );
+  if (!board) return (
+    <div className="min-h-screen flex items-center justify-center">
+      <p className="text-gray-500">Board not found.</p>
+    </div>
+  );
 
-  if (!board) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh] text-center px-4">
-        <div>
-          <div className="text-6xl mb-4">😢</div>
-          <h1 className="text-2xl font-bold text-gray-800 mb-2">Board not found</h1>
-          <p className="text-gray-500">This celebration board doesn&apos;t exist.</p>
-        </div>
-      </div>
-    );
-  }
+  const gifSet = GIF_SETS[board.type] ?? GIF_SETS.birthday;
+  const autoMsgs = AUTO_MESSAGES[board.type] ?? AUTO_MESSAGES.birthday;
+  const shareUrl = typeof window !== "undefined" ? `${window.location.origin}/c/${board.share_token}` : "";
+  const managerNotePost = posts.find(p => p.is_manager_note);
+  const posters = [...new Set(posts.filter(p => !p.is_manager_note).map(p => p.author_name))];
+  const totalHrs = gifts.filter(g => g.status === "approved").reduce((s, g) => s + g.amount, 0);
 
-  const pendingGifts = gifts.filter((g) => g.status === "pending");
-  const approvedGifts = gifts.filter((g) => g.status === "approved");
-  const totalApprovedHrs = approvedGifts.reduce((s, g) => s + g.amount, 0);
-  const totalPendingHrs = pendingGifts.reduce((s, g) => s + g.amount, 0);
-  const managerPost = posts.find((p) => p.is_manager_note === 1);
-  const postAuthors = [...new Set(posts.map((p) => p.author_name))];
-  const participated = EXPECTED_TEAM.filter((n) => postAuthors.includes(n));
-  const notYet = EXPECTED_TEAM.filter((n) => !postAuthors.includes(n));
+  const views = [
+    { key: "board", label: "🎉 The Board" },
+    { key: "manager", label: "👥 Manager View" },
+    { key: "receiver", label: "🌟 Your Board" },
+  ];
 
   return (
-    <div style={{ background: "var(--bg)" }}>
-      {/* Tab bar */}
-      <div className="sticky top-14 z-40 border-b bg-white" style={{ borderColor: "var(--border)" }}>
-        <div className="max-w-6xl mx-auto px-4">
-          <div className="flex gap-1 py-2">
-            {(["board","manager","receiver"] as const).map((v, i) => {
-              const labels = ["🎉 The Board","👥 Manager View","🌟 Your Board"];
-              return (
-                <button
-                  key={v}
-                  onClick={() => router.push(`/board/${id}?view=${v}`)}
-                  className={`px-4 py-2 rounded-xl text-sm font-semibold transition-colors ${view === v ? "bg-indigo-100 text-indigo-700" : "text-gray-500 hover:bg-gray-100"}`}
-                >
-                  {labels[i]}
-                </button>
-              );
-            })}
-          </div>
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-pink-50">
+      {/* Nav */}
+      <div className="sticky top-0 z-30 bg-white/80 backdrop-blur border-b border-gray-100 px-4 py-3 flex items-center gap-3">
+        <button onClick={() => router.push("/")} className="text-gray-400 hover:text-gray-600 mr-1 text-lg">←</button>
+        <div className="min-w-0 flex-1">
+          <p className="font-bold text-gray-800 truncate text-sm">{board.title}</p>
+          <p className="text-xs text-gray-400">For {board.honoree_name}</p>
+        </div>
+        <div className="flex gap-1 flex-shrink-0">
+          {views.map(v => (
+            <button key={v.key}
+              onClick={() => router.push(`/board/${id}?view=${v.key}`)}
+              className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${view === v.key ? "bg-indigo-600 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}>
+              {v.label}
+            </button>
+          ))}
         </div>
       </div>
 
-      {/* ===== TAB 1: THE BOARD ===== */}
+      {/* ── BOARD VIEW ─────────────────────────────────────────────── */}
       {view === "board" && (
-        <div>
-          <div className="py-12 px-4 text-white text-center" style={{ background: `linear-gradient(135deg, ${board.honoree_avatar_color}dd, #ec4899cc)` }}>
-            <div className="text-5xl mb-4">{TYPE_EMOJI[board.type] ?? "🎉"}</div>
-            <div
-              className="w-20 h-20 rounded-full flex items-center justify-center text-white font-extrabold text-2xl mx-auto mb-4 border-4 border-white shadow-xl"
-              style={{ background: board.honoree_avatar_color }}
-            >
-              {initials(board.honoree_name)}
-            </div>
-            <p className="text-white/80 text-sm mb-1">{board.honoree_name}</p>
-            <h1 className="text-3xl md:text-4xl font-extrabold mb-3">{board.title}</h1>
-            <div className="flex items-center justify-center gap-3 flex-wrap">
-              <span className="bg-white/20 backdrop-blur-sm text-white text-xs font-semibold px-3 py-1 rounded-full">{board.values_tag}</span>
-              {board.expires_at && (
-                <span className="bg-white/20 backdrop-blur-sm text-white text-xs font-semibold px-3 py-1 rounded-full">
-                  {daysLeft(board.expires_at)}d left
-                </span>
-              )}
-              {totalApprovedHrs > 0 && (
-                <span className="bg-white/20 backdrop-blur-sm text-white text-xs font-semibold px-3 py-1 rounded-full">
-                  ⏱ {totalApprovedHrs} hrs gifted
-                </span>
+        <div className="max-w-6xl mx-auto px-4 py-6 flex gap-6">
+          {/* Masonry wall */}
+          <div className="flex-1 min-w-0">
+            <div className="columns-2 md:columns-3 gap-4">
+              {posts.map(p => <PostTile key={p.id} post={p} />)}
+              {posts.length === 0 && (
+                <div className="col-span-3 text-center py-16 text-gray-400">
+                  <p className="text-4xl mb-2">✉️</p>
+                  <p>No posts yet. Be the first!</p>
+                </div>
               )}
             </div>
-            {board.description && <p className="text-white/70 mt-4 max-w-lg mx-auto text-sm">{board.description}</p>}
-            {board.public_share_enabled === 1 && board.share_token && (
-              <button
-                onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/c/${board.share_token}`); alert("Link copied!"); }}
-                className="mt-5 inline-flex items-center gap-2 bg-white/20 hover:bg-white/30 text-white text-xs font-semibold px-4 py-2 rounded-full transition-colors"
-              >
-                🔗 Copy shareable link
-              </button>
-            )}
           </div>
 
-          {/* Posts masonry */}
-          <div className="max-w-6xl mx-auto px-4 py-10">
-            {posts.length === 0 ? (
-              <div className="text-center py-16 text-gray-400">
-                <div className="text-5xl mb-3">💌</div>
-                <p className="font-medium">Be the first to leave a message!</p>
-              </div>
-            ) : (
-              <div style={{ columns: "2", columnGap: "1.5rem" }} className="md:columns-3">
-                {posts.map((post) => (
-                  <div key={post.id} style={{ breakInside: "avoid", marginBottom: "1.5rem" }}>
-                    {post.is_manager_note === 1 ? (
-                      <div className="rounded-2xl p-5 text-white relative overflow-hidden shadow-lg" style={{ background: "linear-gradient(135deg, #6366f1, #8b5cf6, #ec4899)" }}>
-                        <span className="absolute top-3 right-3 bg-white/20 text-white text-xs font-bold px-2 py-0.5 rounded-full">📌 Manager</span>
-                        <div className="flex items-center gap-3 mb-3 mt-2">
-                          <div className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm border-2 border-white/50" style={{ background: post.author_avatar_color }}>
-                            {initials(post.author_name)}
-                          </div>
-                          <div>
-                            <div className="font-semibold text-sm">{post.author_name}</div>
-                            <div className="text-white/60 text-xs">Manager</div>
-                          </div>
-                        </div>
-                        {post.message && <p className="text-sm leading-relaxed text-white/90">{post.message}</p>}
-                        {post.reaction && <div className="text-2xl mt-3">{post.reaction}</div>}
-                      </div>
-                    ) : post.audio_url ? (
-                      <div className="bg-white rounded-2xl border p-5 shadow-sm" style={{ borderColor: "var(--border)" }}>
-                        <div className="flex items-center gap-3 mb-4">
-                          <div className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0" style={{ background: post.author_avatar_color }}>
-                            {initials(post.author_name)}
-                          </div>
-                          <div>
-                            <div className="font-semibold text-gray-800 text-sm">{post.author_name}</div>
-                            <div className="text-gray-400 text-xs">{new Date(post.created_at).toLocaleDateString()}</div>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-3 bg-indigo-50 rounded-xl px-4 py-3">
-                          <span className="text-2xl">🎙</span>
-                          <audio controls src={post.audio_url} className="flex-1 h-8" style={{ height: "32px" }} />
-                        </div>
-                        {post.message && <p className="text-sm text-gray-700 mt-3">{post.message}</p>}
-                      </div>
-                    ) : post.photo_url ? (
-                      <div className="bg-white rounded-2xl overflow-hidden shadow-sm border" style={{ borderColor: "var(--border)" }}>
-                        <img src={post.photo_url} alt="photo" className="w-full object-cover" />
-                        <div className="p-3 flex items-center gap-2">
-                          <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0" style={{ background: post.author_avatar_color }}>
-                            {initials(post.author_name)}
-                          </div>
-                          <div className="text-xs text-gray-600 font-medium">{post.author_name}</div>
-                          {post.message && <p className="text-xs text-gray-500 ml-1 truncate">{post.message}</p>}
-                        </div>
-                      </div>
-                    ) : post.gif_url ? (
-                      <div className="bg-white rounded-2xl overflow-hidden shadow-sm border" style={{ borderColor: "var(--border)" }}>
-                        <img src={post.gif_url} alt={post.gif_title ?? "gif"} className="w-full object-cover" />
-                        <div className="p-3 flex items-center gap-2">
-                          <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0" style={{ background: post.author_avatar_color }}>
-                            {initials(post.author_name)}
-                          </div>
-                          <div className="text-xs text-gray-600 font-medium">{post.author_name}</div>
-                          {post.message && <p className="text-xs text-gray-500 ml-1 truncate">{post.message}</p>}
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="bg-white rounded-2xl border p-5 shadow-sm" style={{ borderColor: "var(--border)" }}>
-                        <div className="flex items-center gap-3 mb-3">
-                          <div className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0" style={{ background: post.author_avatar_color }}>
-                            {initials(post.author_name)}
-                          </div>
-                          <div>
-                            <div className="font-semibold text-gray-800 text-sm">{post.author_name}</div>
-                            <div className="text-gray-400 text-xs">{new Date(post.created_at).toLocaleDateString()}</div>
-                          </div>
-                        </div>
-                        {post.message && <p className="text-sm text-gray-700 leading-relaxed">{post.message}</p>}
-                        {post.reaction && <div className="text-2xl mt-3">{post.reaction}</div>}
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* Composer */}
-            <div className="mt-10 bg-white rounded-3xl border shadow-sm overflow-hidden" style={{ borderColor: "var(--border)" }}>
-              <div className="p-6 border-b flex items-center justify-between" style={{ borderColor: "var(--border)" }}>
-                <h2 className="font-bold text-gray-800 text-lg">Leave a message ✨</h2>
-                {(selectedGif || photoPreview || audioBlobUrl) && (
-                  <span className="text-xs bg-indigo-100 text-indigo-600 font-semibold px-2.5 py-1 rounded-full">
-                    {selectedGif ? "🎞 GIF ready" : photoPreview ? "📷 Photo ready" : "🎙 Audio ready"}
-                  </span>
-                )}
+          {/* Composer sidebar */}
+          <div className="w-80 flex-shrink-0">
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden sticky top-20">
+              <div className="p-4 border-b border-gray-50">
+                <p className="font-semibold text-gray-800 text-sm">Leave a message</p>
               </div>
 
               {/* Tabs */}
-              <div className="flex border-b" style={{ borderColor: "var(--border)" }}>
-                {(["text","gif","photo","audio"] as const).map((t) => {
-                  const labels = { text: "💬 Text", gif: "🎞 GIF", photo: "📷 Photo", audio: "🎙 Voice" };
-                  const active = composerTab === t || (t === "photo" && photoPreview) || (t === "audio" && audioBlobUrl) || (t === "gif" && selectedGif);
-                  return (
-                    <button
-                      key={t}
-                      onClick={() => setComposerTab(t)}
-                      className={`flex-1 py-3 text-sm font-semibold transition-colors ${active ? "border-b-2 border-indigo-500 text-indigo-600" : "text-gray-400 hover:text-gray-600"}`}
-                    >
-                      {labels[t]}
-                    </button>
-                  );
-                })}
+              <div className="flex border-b border-gray-100">
+                {(["text","gif","photo","voice"] as const).map(t => (
+                  <button key={t} onClick={() => setTab(t)}
+                    className={`flex-1 py-2.5 text-base transition-colors ${tab === t ? "border-b-2 border-indigo-500 bg-indigo-50" : "text-gray-400 hover:bg-gray-50"}`}>
+                    {t === "text" ? "💬" : t === "gif" ? "🎞" : t === "photo" ? "📷" : "🎙"}
+                  </button>
+                ))}
               </div>
 
-              <div className="p-6">
-                {composerTab === "text" && (
-                  <div className="space-y-4">
-                    <div>
-                      <p className="text-xs text-gray-400 mb-2 font-medium">Suggested for this {board.type.replace("_", " ")} ✨</p>
-                      <div className="flex flex-wrap gap-2">
-                        {autoMessages.map((m, i) => (
-                          <button
-                            key={i}
-                            onClick={() => setMessage(m.text)}
-                            className={`text-xs px-3 py-1.5 rounded-full font-medium transition-colors border ${message === m.text ? "bg-indigo-500 text-white border-indigo-500" : "bg-white text-indigo-600 border-indigo-200 hover:bg-indigo-50"}`}
-                          >
-                            {m.label}
-                          </button>
-                        ))}
-                      </div>
+              <div className="p-4 space-y-3">
+                {/* TEXT TAB */}
+                {tab === "text" && (
+                  <>
+                    <div className="flex flex-wrap gap-1.5">
+                      {autoMsgs.map(m => (
+                        <button key={m.label} onClick={() => setMessage(m.text)}
+                          className="px-2 py-1 rounded-full bg-indigo-50 text-indigo-600 text-xs hover:bg-indigo-100 transition-colors">
+                          {m.label}
+                        </button>
+                      ))}
                     </div>
-                    <textarea
-                      className="w-full border rounded-2xl px-4 py-3 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-indigo-300"
-                      style={{ borderColor: "var(--border)" }}
-                      rows={4}
-                      placeholder={`Write something for ${board?.honoree_name?.split(" ")[0] ?? "them"}...`}
-                      value={message}
-                      onChange={(e) => setMessage(e.target.value)}
-                    />
-                    <div className="flex flex-wrap gap-2">
-                      {REACTIONS.map((r) => (
-                        <button
-                          key={r}
-                          onClick={() => setReaction(reaction === r ? "" : r)}
-                          className={`text-2xl transition-transform hover:scale-125 ${reaction === r ? "scale-125 drop-shadow-md" : ""}`}
-                        >
+                    <textarea value={message} onChange={e => setMessage(e.target.value)}
+                      placeholder="Write your message…" rows={3}
+                      className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-indigo-300" />
+                    <div className="flex flex-wrap gap-1">
+                      {REACTIONS.map(r => (
+                        <button key={r} onClick={() => setReaction(reaction === r ? "" : r)}
+                          className={`text-lg p-1 rounded-lg transition-colors ${reaction === r ? "bg-indigo-100" : "hover:bg-gray-100"}`}>
                           {r}
                         </button>
                       ))}
                     </div>
-                    {(photoPreview || audioBlobUrl) && (
-                      <div className="flex items-center gap-3 flex-wrap">
-                        {photoPreview && (
-                          <div className="flex items-center gap-2 bg-green-50 border border-green-200 rounded-xl px-3 py-2">
-                            <img src={photoPreview} alt="preview" className="w-8 h-8 rounded-lg object-cover" />
-                            <span className="text-xs text-green-700 font-medium">Photo attached</span>
-                            <button onClick={() => { setPhotoDataUrl(""); setPhotoPreview(""); }} className="text-red-400 text-xs ml-1 hover:underline">✕</button>
-                          </div>
-                        )}
-                        {audioBlobUrl && (
-                          <div className="flex items-center gap-2 bg-indigo-50 border border-indigo-200 rounded-xl px-3 py-2">
-                            <span className="text-lg">🎙</span>
-                            <audio controls src={audioBlobUrl} className="h-7" />
-                            <button onClick={() => { setAudioDataUrl(""); setAudioBlobUrl(""); }} className="text-red-400 text-xs ml-1 hover:underline">✕</button>
-                          </div>
-                        )}
-                      </div>
-                    )}
+                  </>
+                )}
+
+                {/* GIF TAB */}
+                {tab === "gif" && (
+                  <div className="grid grid-cols-3 gap-1.5 max-h-60 overflow-y-auto">
+                    {gifSet.map((url, i) => (
+                      <button key={i} onClick={() => { setSelectedGif({ url, title: `GIF ${i+1}` }); setTab("text"); }}
+                        className="aspect-square rounded-lg overflow-hidden hover:ring-2 hover:ring-indigo-400 transition-all">
+                        <img src={url} alt="gif" className="w-full h-full object-cover" />
+                      </button>
+                    ))}
                   </div>
                 )}
 
-                {composerTab === "gif" && (
-                  <div>
-                    <p className="text-sm text-gray-500 mb-4">Pick a GIF to attach:</p>
-                    <div className="grid grid-cols-3 gap-3">
-                      {gifs.map((url) => (
-                        <button
-                          key={url}
-                          onClick={() => { setSelectedGif(url); setComposerTab("text"); }}
-                          className={`rounded-xl overflow-hidden border-2 transition-all hover:scale-105 ${selectedGif === url ? "border-indigo-500 shadow-lg" : "border-transparent"}`}
-                        >
-                          <img src={url} alt="gif" className="w-full h-24 object-cover" />
-                        </button>
-                      ))}
-                    </div>
-                    {selectedGif && (
-                      <div className="mt-4 flex items-center gap-2 text-sm text-indigo-600">
-                        <span>✅ GIF selected!</span>
-                        <button onClick={() => setSelectedGif("")} className="text-red-400 hover:underline text-xs">Remove</button>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {composerTab === "photo" && (
-                  <div>
-                    {photoPreview ? (
-                      <div className="relative rounded-2xl overflow-hidden">
-                        <img src={photoPreview} alt="preview" className="w-full max-h-72 object-cover rounded-2xl" />
-                        <button
-                          onClick={() => { setPhotoDataUrl(""); setPhotoPreview(""); }}
-                          className="absolute top-3 right-3 bg-black/50 text-white text-xs px-3 py-1 rounded-full hover:bg-black/70"
-                        >
-                          ✕ Remove
-                        </button>
-                        <div className="absolute bottom-3 left-3 bg-black/50 text-white text-xs px-3 py-1 rounded-full">
-                          📷 Photo ready — switch to Text to add a message
-                        </div>
-                      </div>
+                {/* PHOTO TAB */}
+                {tab === "photo" && (
+                  <>
+                    {!photoData ? (
+                      <label
+                        onDragOver={e => { e.preventDefault(); setIsDragging(true); }}
+                        onDragLeave={() => setIsDragging(false)}
+                        onDrop={async e => { e.preventDefault(); setIsDragging(false); const f = e.dataTransfer.files[0]; if (f) await handlePhotoFile(f); }}
+                        className={`flex flex-col items-center justify-center gap-2 border-2 border-dashed rounded-xl h-32 cursor-pointer transition-colors ${isDragging ? "border-indigo-400 bg-indigo-50" : "border-gray-200 hover:border-indigo-300"}`}>
+                        <span className="text-2xl">📷</span>
+                        <span className="text-xs text-gray-400">Drag & drop or click to choose</span>
+                        <input type="file" accept="image/*" className="hidden"
+                          onChange={async e => { if (e.target.files?.[0]) await handlePhotoFile(e.target.files[0]); }} />
+                      </label>
                     ) : (
-                      <div
-                        className="border-2 border-dashed rounded-2xl p-12 text-center cursor-pointer hover:bg-gray-50 transition-colors"
-                        style={{ borderColor: "#c7d2fe" }}
-                        onClick={() => photoInputRef.current?.click()}
-                      >
-                        <div className="text-5xl mb-3">📷</div>
-                        <p className="text-gray-600 font-medium mb-1">Upload a photo</p>
-                        <p className="text-gray-400 text-sm">JPG, PNG, GIF — up to 5 MB</p>
-                        <div className="mt-4 inline-flex items-center gap-2 bg-indigo-50 text-indigo-600 text-sm font-semibold px-5 py-2 rounded-full">
-                          Browse files
-                        </div>
+                      <div className="relative">
+                        <img src={photoData} alt="Preview" className="w-full rounded-xl object-cover max-h-48" />
+                        <button onClick={() => setPhotoData(null)}
+                          className="absolute top-2 right-2 bg-black/50 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-black/70">
+                          ✕
+                        </button>
                       </div>
                     )}
-                    <input
-                      ref={photoInputRef}
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={handlePhotoSelect}
-                    />
-                  </div>
+                  </>
                 )}
 
-                {composerTab === "audio" && (
-                  <div className="text-center py-8">
-                    {audioBlobUrl && !recording ? (
-                      <div className="space-y-4">
-                        <div className="text-4xl">✅</div>
-                        <p className="text-gray-700 font-semibold">Voice message recorded!</p>
-                        <audio controls src={audioBlobUrl} className="mx-auto" />
-                        <div className="flex gap-3 justify-center">
-                          <button
-                            onClick={() => { setAudioDataUrl(""); setAudioBlobUrl(""); setRecordTime(0); }}
-                            className="px-5 py-2 text-sm bg-gray-100 text-gray-600 rounded-full font-semibold hover:bg-gray-200"
-                          >
-                            🔄 Re-record
+                {/* VOICE TAB */}
+                {tab === "voice" && (
+                  <div className="flex flex-col items-center gap-3 py-2">
+                    {!audioUrl ? (
+                      <>
+                        {recording ? (
+                          <>
+                            <div className="flex items-end gap-1 h-10">
+                              {[...Array(8)].map((_, i) => (
+                                <div key={i} className="w-1.5 bg-indigo-500 rounded-full animate-pulse"
+                                  style={{ height: `${20 + (i % 3) * 10}px`, animationDelay: `${i * 0.1}s` }} />
+                              ))}
+                            </div>
+                            <p className="text-xs text-gray-500">{recSeconds}s / 60s</p>
+                            <button onClick={stopRecording}
+                              className="px-4 py-2 bg-red-500 text-white rounded-full text-sm font-medium hover:bg-red-600 transition-colors">
+                              ⏹ Stop
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <button onClick={startRecording}
+                              className="px-4 py-2 bg-indigo-600 text-white rounded-full text-sm font-medium hover:bg-indigo-700 transition-colors">
+                              🎙 Start Recording
+                            </button>
+                            <p className="text-xs text-gray-400">Max 60s</p>
+                          </>
+                        )}
+                      </>
+                    ) : (
+                      <div className="w-full space-y-2">
+                        <audio controls src={audioUrl} className="w-full h-8" />
+                        <div className="flex gap-2">
+                          <button onClick={() => { setAudioBlob(null); setAudioUrl(null); }}
+                            className="flex-1 py-1.5 text-xs border border-gray-200 rounded-lg hover:bg-gray-50">
+                            Re-record
                           </button>
-                          <button
-                            onClick={() => setComposerTab("text")}
-                            className="px-5 py-2 text-sm text-white font-semibold rounded-full"
-                            style={{ background: "linear-gradient(135deg, #6366f1, #ec4899)" }}
-                          >
-                            ✓ Use this
+                          <button onClick={() => setTab("text")}
+                            className="flex-1 py-1.5 text-xs bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">
+                            Use this ✓
                           </button>
                         </div>
                       </div>
-                    ) : recording ? (
-                      <div className="space-y-4">
-                        <div className="text-5xl animate-pulse">⏺️</div>
-                        <p className="text-red-500 font-semibold text-lg">Recording... {recordTime}s</p>
-                        <div className="flex justify-center gap-1">
-                          {[...Array(8)].map((_, i) => (
-                            <div
-                              key={i}
-                              className="w-1.5 rounded-full bg-red-400"
-                              style={{ height: `${12 + Math.sin(Date.now() / 200 + i) * 8}px`, animation: `pulse ${0.5 + i * 0.1}s ease-in-out infinite alternate` }}
-                            />
-                          ))}
-                        </div>
-                        <button
-                          onClick={stopRecording}
-                          className="px-8 py-3 bg-red-500 text-white rounded-full font-semibold hover:bg-red-600 transition-colors"
-                        >
-                          ⏹ Stop Recording
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="space-y-4">
-                        <div className="text-5xl">🎙</div>
-                        <p className="text-gray-600 text-sm">Record a personal voice message for <strong>{board.honoree_name.split(" ")[0]}</strong></p>
-                        <p className="text-gray-400 text-xs">Your browser will ask for microphone permission</p>
-                        <button
-                          onClick={startRecording}
-                          className="px-8 py-3 rounded-full text-white font-semibold transition-opacity hover:opacity-90"
-                          style={{ background: "linear-gradient(135deg, #6366f1, #ec4899)" }}
-                        >
-                          🎙 Start Recording
-                        </button>
-                      </div>
                     )}
                   </div>
                 )}
 
-                <div className="mt-6 flex gap-3 flex-wrap items-end border-t pt-5" style={{ borderColor: "var(--border)" }}>
-                  <div className="flex-1 min-w-36">
-                    <label className="block text-xs text-gray-500 mb-1">Your name *</label>
-                    <input
-                      className="w-full border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
-                      style={{ borderColor: "var(--border)" }}
-                      value={authorName}
-                      onChange={(e) => setAuthorName(e.target.value)}
-                      placeholder="Your name"
-                    />
+                {/* Selected GIF preview (shown on text tab) */}
+                {selectedGif && tab === "text" && (
+                  <div className="relative">
+                    <img src={selectedGif.url} alt={selectedGif.title} className="w-full rounded-xl max-h-32 object-cover" />
+                    <button onClick={() => setSelectedGif(null)}
+                      className="absolute top-1 right-1 bg-black/50 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs">
+                      ✕
+                    </button>
                   </div>
-                  <div className="flex-1 min-w-36">
-                    <label className="block text-xs text-gray-500 mb-1">Your email (optional)</label>
-                    <input
-                      type="email"
-                      className="w-full border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
-                      style={{ borderColor: "var(--border)" }}
-                      value={authorEmail}
-                      onChange={(e) => setAuthorEmail(e.target.value)}
-                      placeholder="you@applied.co"
-                    />
-                  </div>
-                  <button
-                    onClick={submitPost}
-                    disabled={submitting}
-                    className="px-8 py-2.5 rounded-xl text-white font-semibold transition-opacity hover:opacity-90 disabled:opacity-50 whitespace-nowrap"
-                    style={{ background: "linear-gradient(135deg, #6366f1, #ec4899)" }}
-                  >
-                    {submitting ? "Posting..." : "🎉 Post"}
+                )}
+
+                {/* Author + Post */}
+                <div className="pt-2 border-t border-gray-50 space-y-2">
+                  <input value={authorName} onChange={e => setAuthorName(e.target.value)}
+                    placeholder="Your name (required)"
+                    className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-300" />
+                  <input value={authorEmail} onChange={e => setAuthorEmail(e.target.value)}
+                    placeholder="Email (optional)"
+                    className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-300" />
+                  <button onClick={submitPost} disabled={posting || !authorName.trim()}
+                    className="w-full py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-semibold hover:bg-indigo-700 transition-colors disabled:opacity-50">
+                    {posting ? "Posting…" : "Post 🎉"}
                   </button>
                 </div>
               </div>
@@ -728,185 +678,161 @@ export default function BoardPage() {
         </div>
       )}
 
-      {/* ===== TAB 2: MANAGER VIEW ===== */}
+      {/* ── MANAGER VIEW ───────────────────────────────────────────── */}
       {view === "manager" && (
-        <div className="max-w-4xl mx-auto px-4 py-10 space-y-8">
-          <div className="flex items-center gap-3">
-            <span className="bg-indigo-100 text-indigo-700 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wide">Manager View</span>
-            <span className="text-gray-500 text-sm">{board.title}</span>
-          </div>
+        <div className="max-w-3xl mx-auto px-4 py-6 space-y-6">
+          <h2 className="text-xl font-bold text-gray-800">👥 Manager View</h2>
 
-          <div className="bg-white rounded-2xl border p-6" style={{ borderColor: "var(--border)" }}>
-            <h2 className="font-bold text-gray-800 mb-4 flex items-center gap-2"><span>📌</span> Manager Note</h2>
-            {managerPost ? (
-              <div className="rounded-xl p-4 text-white" style={{ background: "linear-gradient(135deg, #6366f1, #ec4899)" }}>
-                <p className="text-sm leading-relaxed">{managerPost.message}</p>
-                <div className="text-white/60 text-xs mt-2">— {managerPost.author_name}</div>
+          {/* Manager note */}
+          <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+            <p className="font-semibold text-gray-700 mb-3">📌 Manager Note</p>
+            {managerNotePost ? (
+              <div className="rounded-xl p-4 text-white text-sm" style={{ background: "linear-gradient(135deg,#6366f1,#ec4899)" }}>
+                {managerNotePost.message}
               </div>
             ) : (
-              <div className="text-center py-8 text-gray-400">
-                <div className="text-4xl mb-2">✏️</div>
-                <p className="text-sm">No manager note yet. Post one from the board tab!</p>
+              <div className="space-y-2">
+                <textarea value={managerNote} onChange={e => setManagerNote(e.target.value)}
+                  placeholder="Pin a personal note at the top of the board…" rows={3}
+                  className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-indigo-300" />
+                <button onClick={submitManagerNote} disabled={savingNote || !managerNote.trim()}
+                  className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700 disabled:opacity-50">
+                  {savingNote ? "Saving…" : "Pin Note"}
+                </button>
               </div>
             )}
           </div>
 
-          <div className="bg-white rounded-2xl border p-6" style={{ borderColor: "var(--border)" }}>
-            <h2 className="font-bold text-gray-800 mb-1 flex items-center gap-2"><span>⏱</span> Time-Off Gift Queue</h2>
-            <p className="text-sm text-gray-400 mb-4">
-              Approved: <strong className="text-emerald-600">{totalApprovedHrs} hrs</strong> &nbsp;|&nbsp;
-              Pending: <strong className="text-amber-500">{totalPendingHrs} hrs</strong>
-            </p>
-            {pendingGifts.length === 0 ? (
-              <p className="text-gray-400 text-sm text-center py-4">No pending time-off gifts</p>
+          {/* Gift approval queue */}
+          <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+            <p className="font-semibold text-gray-700 mb-3">🎁 Gift Approval Queue</p>
+            {gifts.length === 0 ? (
+              <p className="text-sm text-gray-400">No gift contributions yet.</p>
             ) : (
-              <div className="space-y-3">
-                {pendingGifts.map((g) => (
-                  <div key={g.id} className="flex items-center gap-4 p-4 rounded-xl bg-amber-50 border border-amber-100">
-                    <div className="flex-1">
-                      <div className="font-semibold text-gray-800 text-sm">{g.from_name} gifted <span className="text-indigo-600">{g.amount} hrs</span></div>
-                      {g.note && <div className="text-gray-500 text-xs mt-0.5">"{g.note}"</div>}
-                      {g.workday_balance != null && <div className="text-gray-400 text-xs mt-0.5">Balance: {g.workday_balance} hrs</div>}
+              <div className="space-y-2">
+                {gifts.map(g => (
+                  <div key={g.id} className="flex items-center gap-3 p-3 rounded-xl bg-gray-50">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-800">{g.from_name}</p>
+                      <p className="text-xs text-gray-500">
+                        {g.amount}h · {g.gift_type.replace(/_/g," ")}
+                        {g.note ? ` · "${g.note}"` : ""}
+                      </p>
                     </div>
-                    <div className="flex gap-2">
-                      <button onClick={() => handleGiftAction(g.id, "approve")} className="px-3 py-1.5 bg-emerald-500 text-white rounded-lg text-xs font-semibold hover:bg-emerald-600">✅ Approve</button>
-                      <button onClick={() => handleGiftAction(g.id, "reject")} className="px-3 py-1.5 bg-red-100 text-red-600 rounded-lg text-xs font-semibold hover:bg-red-200">✕ Reject</button>
-                    </div>
+                    {g.status === "pending" ? (
+                      <div className="flex gap-1.5">
+                        <button onClick={() => giftAction(g.id, "approve")}
+                          className="px-3 py-1 bg-green-500 text-white text-xs rounded-lg hover:bg-green-600">
+                          Approve
+                        </button>
+                        <button onClick={() => giftAction(g.id, "reject")}
+                          className="px-3 py-1 bg-red-100 text-red-600 text-xs rounded-lg hover:bg-red-200">
+                          Reject
+                        </button>
+                      </div>
+                    ) : (
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${g.status === "approved" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-600"}`}>
+                        {g.status}
+                      </span>
+                    )}
                   </div>
                 ))}
               </div>
             )}
-            {approvedGifts.length > 0 && (
-              <div className="mt-4 space-y-2">
-                {approvedGifts.map((g) => (
-                  <div key={g.id} className="flex items-center gap-4 p-3 rounded-xl bg-emerald-50 border border-emerald-100 text-sm">
-                    <span className="text-emerald-600">✅</span>
-                    <span className="font-medium text-gray-700">{g.from_name}</span>
-                    <span className="text-gray-500">{g.amount} hrs approved</span>
-                  </div>
-                ))}
-              </div>
-            )}
-            <button
-              onClick={() => alert("Workday integration coming soon!")}
-              className="mt-4 px-4 py-2 text-sm font-semibold text-indigo-600 bg-indigo-50 rounded-xl hover:bg-indigo-100"
-            >
-              Export to Workday ↗
-            </button>
           </div>
 
-          <div className="bg-white rounded-2xl border p-6" style={{ borderColor: "var(--border)" }}>
-            <h2 className="font-bold text-gray-800 mb-4 flex items-center gap-2"><span>👥</span> Team Participation</h2>
+          {/* Team participation checklist */}
+          <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+            <p className="font-semibold text-gray-700 mb-3">✅ Team Participation</p>
             <div className="space-y-2">
-              {participated.map((name) => (
-                <div key={name} className="flex items-center gap-3 text-sm">
-                  <span className="text-emerald-500">✅</span>
-                  <span className="text-gray-700 font-medium">{name}</span>
-                  <span className="text-gray-400 text-xs">posted</span>
-                </div>
-              ))}
-              {notYet.map((name) => (
-                <div key={name} className="flex items-center gap-3 text-sm">
-                  <span className="text-gray-300">⬜</span>
-                  <span className="text-gray-400">{name}</span>
-                  <span className="text-xs bg-amber-50 text-amber-600 px-2 py-0.5 rounded-full">Nudge them?</span>
-                </div>
-              ))}
+              {EXPECTED_TEAM.map(name => {
+                const posted = posters.includes(name);
+                return (
+                  <div key={name} className={`flex items-center gap-3 p-2.5 rounded-xl ${posted ? "bg-green-50" : "bg-gray-50"}`}>
+                    <span className="text-lg">{posted ? "✅" : "⬜"}</span>
+                    <span className="text-sm text-gray-700">{name}</span>
+                    {posted && <span className="ml-auto text-xs text-green-600 font-medium">Posted</span>}
+                  </div>
+                );
+              })}
             </div>
+            <p className="text-xs text-gray-400 mt-3">{posters.length} / {EXPECTED_TEAM.length} team members posted</p>
           </div>
+
+          {/* Export to Workday stub */}
+          <button
+            onClick={() => alert("Workday export coming soon! This would push approved time-off to Workday.")}
+            className="w-full py-3 border-2 border-dashed border-indigo-200 text-indigo-500 rounded-2xl text-sm font-medium hover:border-indigo-400 hover:text-indigo-600 transition-colors">
+            📤 Export to Workday (stub)
+          </button>
         </div>
       )}
 
-      {/* ===== TAB 3: YOUR BOARD (RECEIVER) ===== */}
+      {/* ── RECEIVER VIEW ──────────────────────────────────────────── */}
       {view === "receiver" && (
-        <div>
-          <div className="py-14 px-4 text-center text-white" style={{ background: "linear-gradient(135deg, #ec4899, #f472b6, #f9a8d4)" }}>
-            <div className="text-5xl mb-4">🌟</div>
-            <h1 className="text-3xl md:text-4xl font-extrabold mb-2">
-              This is YOUR celebration, {board.honoree_name.split(" ")[0]}!
-            </h1>
-            <p className="text-white/80">Your team loves you and wanted you to know.</p>
-            <div className="mt-4 flex items-center justify-center gap-6">
+        <div className="max-w-2xl mx-auto px-4 py-6 space-y-6">
+          {/* Hero */}
+          <div className="relative rounded-3xl overflow-hidden p-8 text-white text-center"
+            style={{ background: "linear-gradient(135deg,#6366f1,#ec4899,#f59e0b)" }}>
+            <div className="mx-auto mb-4 rounded-full flex items-center justify-center text-3xl font-bold bg-white/20"
+              style={{ width: 80, height: 80 }}>
+              {initials(board.honoree_name)}
+            </div>
+            <h1 className="text-2xl font-bold mb-1">{board.title}</h1>
+            <p className="text-white/80 text-sm mb-6">{board.honoree_name} · {board.values_tag}</p>
+            <div className="flex justify-center gap-8 mb-6">
               <div className="text-center">
-                <div className="text-2xl font-extrabold">{posts.length}</div>
-                <div className="text-white/70 text-xs">messages</div>
+                <p className="text-2xl font-bold">{posts.filter(p => !p.is_manager_note).length}</p>
+                <p className="text-xs text-white/70">Messages</p>
               </div>
-              {totalApprovedHrs > 0 && (
-                <div className="text-center">
-                  <div className="text-2xl font-extrabold">{totalApprovedHrs}</div>
-                  <div className="text-white/70 text-xs">hrs gifted</div>
-                </div>
-              )}
               <div className="text-center">
-                <div className="text-2xl font-extrabold">{badges.length}</div>
-                <div className="text-white/70 text-xs">badges</div>
+                <p className="text-2xl font-bold">{badges.length}</p>
+                <p className="text-xs text-white/70">Badges</p>
+              </div>
+              <div className="text-center">
+                <p className="text-2xl font-bold">{totalHrs}</p>
+                <p className="text-xs text-white/70">Gift hrs</p>
               </div>
             </div>
+            <button
+              onClick={() => { navigator.clipboard.writeText(shareUrl); alert("Link copied!"); }}
+              className="px-5 py-2 bg-white/20 hover:bg-white/30 rounded-full text-sm font-medium transition-colors">
+              🔗 Share Board
+            </button>
           </div>
 
-          <div className="max-w-4xl mx-auto px-4 py-10 space-y-10">
-            <div>
-              <h2 className="text-xl font-bold text-gray-800 mb-6">💌 Messages from your team</h2>
-              <div className="space-y-4">
-                {posts.map((post) => (
-                  <div
-                    key={post.id}
-                    className={`rounded-2xl p-5 ${post.is_manager_note ? "border-2 border-indigo-300 bg-indigo-50" : "bg-white border shadow-sm"}`}
-                    style={post.is_manager_note ? {} : { borderColor: "var(--border)" }}
-                  >
-                    <div className="flex items-center gap-3 mb-3">
-                      <div className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0" style={{ background: post.author_avatar_color }}>
-                        {initials(post.author_name)}
-                      </div>
+          {/* Badges showcase */}
+          {badges.length > 0 && (
+            <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+              <p className="font-semibold text-gray-700 mb-3">🏅 Your Badges</p>
+              <div className="flex flex-wrap gap-2">
+                {badges.map(b => {
+                  const meta = BADGE_META[b.badge_type] ?? { icon: "⭐", color: "#6366f1", label: b.badge_type };
+                  return (
+                    <div key={b.id} className="flex items-center gap-2 px-3 py-2 rounded-xl"
+                      style={{ backgroundColor: meta.color + "15", border: `1px solid ${meta.color}30` }}>
+                      <span className="text-xl">{meta.icon}</span>
                       <div>
-                        <div className="font-semibold text-gray-800 text-sm">{post.author_name}</div>
-                        {post.is_manager_note === 1 && <div className="text-xs text-indigo-500">📌 Your Manager</div>}
+                        <p className="text-xs font-semibold" style={{ color: meta.color }}>{meta.label}</p>
+                        <p className="text-xs text-gray-400">{b.person_name}</p>
                       </div>
                     </div>
-                    {post.photo_url && <img src={post.photo_url} alt="photo" className="w-full rounded-xl mb-3 object-cover max-h-64" />}
-                    {post.gif_url && <img src={post.gif_url} alt="gif" className="w-full rounded-xl mb-3 object-cover max-h-52" />}
-                    {post.audio_url && (
-                      <div className="flex items-center gap-3 bg-indigo-50 rounded-xl px-4 py-3 mb-3">
-                        <span className="text-xl">🎙</span>
-                        <audio controls src={post.audio_url} className="flex-1 h-8" />
-                      </div>
-                    )}
-                    {post.message && <p className="text-gray-700 text-sm leading-relaxed">{post.message}</p>}
-                    {post.reaction && <div className="text-2xl mt-2">{post.reaction}</div>}
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
+          )}
 
-            {badges.length > 0 && (
-              <div>
-                <h2 className="text-xl font-bold text-gray-800 mb-4">🏅 Your Badges</h2>
-                <div className="flex flex-wrap gap-3">
-                  {badges.map((b) => {
-                    const meta = BADGE_META[b.badge_type] ?? { icon: "🏅", color: "bg-gray-100 text-gray-600" };
-                    return (
-                      <div key={b.id} className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-semibold ${meta.color} shadow-sm`}>
-                        <span className="text-lg">{meta.icon}</span>
-                        <div>
-                          <div className="capitalize">{b.badge_type.replace(/_/g, " ")}</div>
-                          {b.reason && <div className="text-xs opacity-70 font-normal">{b.reason}</div>}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
+          {/* Messages list */}
+          <div className="space-y-3">
+            <p className="font-semibold text-gray-700">💌 Messages from your team</p>
+            {posts.map(p => <PostTile key={p.id} post={p} />)}
+            {posts.length === 0 && (
+              <div className="text-center py-10 text-gray-400">
+                <p className="text-3xl mb-2">📭</p>
+                <p className="text-sm">No messages yet — share the board link!</p>
               </div>
             )}
-
-            <div className="flex justify-center">
-              <button
-                onClick={() => alert("Download coming soon!")}
-                className="px-8 py-3 rounded-full text-white font-bold text-sm transition-opacity hover:opacity-90"
-                style={{ background: "linear-gradient(135deg, #6366f1, #ec4899)" }}
-              >
-                📥 Download My Board
-              </button>
-            </div>
           </div>
         </div>
       )}
