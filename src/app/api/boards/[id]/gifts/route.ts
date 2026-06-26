@@ -1,0 +1,64 @@
+import { NextRequest, NextResponse } from "next/server";
+import { getDb } from "@/lib/db";
+import { randomUUID } from "crypto";
+
+export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const db = getDb();
+  const gifts = db.prepare("SELECT * FROM board_gifts WHERE board_id = ? ORDER BY created_at ASC").all(id);
+  const agg = db.prepare(`
+    SELECT
+      COALESCE(SUM(CASE WHEN status='pending' THEN amount ELSE 0 END), 0) as total_pending_hrs,
+      COALESCE(SUM(CASE WHEN status='approved' THEN amount ELSE 0 END), 0) as total_approved_hrs
+    FROM board_gifts WHERE board_id = ?
+  `).get(id);
+  return NextResponse.json({ gifts, ...agg as object });
+}
+
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const db = getDb();
+  const board = db.prepare("SELECT * FROM boards WHERE id = ?").get(id) as { requires_gift_approval: number } | null;
+  if (!board) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  const body = await req.json();
+
+  // Max 8 hrs per giver per board
+  const existing = db.prepare(
+    "SELECT COALESCE(SUM(amount), 0) as total FROM board_gifts WHERE board_id = ? AND from_email = ?"
+  ).get(id, body.from_email) as { total: number };
+  if (existing.total + body.amount > 8) {
+    return NextResponse.json({ error: "Exceeds 8 hour limit per giver per event" }, { status: 400 });
+  }
+
+  const giftId = randomUUID();
+  const autoApprove = board.requires_gift_approval === 0;
+  db.prepare(`INSERT INTO board_gifts
+    (id, board_id, from_name, from_email, gift_type, amount, note, status, workday_balance)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    giftId, id, body.from_name, body.from_email, body.gift_type ?? "time_off_hours",
+    body.amount, body.note ?? null, autoApprove ? "approved" : "pending", body.workday_balance ?? null
+  );
+
+  const gift = db.prepare("SELECT * FROM board_gifts WHERE id = ?").get(giftId);
+  return NextResponse.json(gift, { status: 201 });
+}
+
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const db = getDb();
+  const body = await req.json();
+  const { giftId, action, approved_by } = body;
+
+  if (!["approve", "reject"].includes(action)) {
+    return NextResponse.json({ error: "Invalid action" }, { status: 400 });
+  }
+
+  const status = action === "approve" ? "approved" : "rejected";
+  db.prepare("UPDATE board_gifts SET status = ?, approved_by = ? WHERE id = ? AND board_id = ?")
+    .run(status, approved_by ?? null, giftId, id);
+
+  const gift = db.prepare("SELECT * FROM board_gifts WHERE id = ?").get(giftId);
+  return NextResponse.json(gift);
+}
