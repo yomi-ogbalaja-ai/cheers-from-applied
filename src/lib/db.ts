@@ -185,40 +185,33 @@ function selectGiftTotal(sql: string, args: unknown[]): Row {
 
 function handleSelect(sql: string, args: unknown[]): Row[] | Row | null {
   const ns = normSql(sql);
-  const table = extractTable(sql);
 
-  // COUNT(*)
+  // PRAGMA table_info
+  if (/PRAGMA\s+table_info/i.test(ns)) return [];
+
+  // COUNT(*) on boards
   if (/SELECT\s+COUNT\(\*\)\s+as\s+c\s+FROM\s+boards/i.test(ns)) {
     return { c: tables.boards.length } as unknown as Row;
   }
 
-  // PRAGMA table_info
-  if (/PRAGMA\s+table_info/i.test(ns)) {
-    return [];
+  // Boards queries — check FIRST because they contain subqueries that would
+  // otherwise match the COALESCE patterns below
+  if (/FROM\s+boards\b/i.test(ns)) {
+    return selectBoards(sql, args);
   }
 
-  // Gifts aggregate with COALESCE SUM CASE
-  if (
-    /SELECT\s+COALESCE\(SUM\(CASE/i.test(ns) &&
-    /FROM\s+board_gifts/i.test(ns)
-  ) {
+  // Gifts aggregate with COALESCE SUM CASE (simple query, no subqueries)
+  if (/SELECT\s+COALESCE\(SUM\(CASE/i.test(ns) && /FROM\s+board_gifts/i.test(ns)) {
     return selectGiftsAgg(sql, args) as unknown as Row;
   }
 
   // Gift total for giver: SELECT COALESCE(SUM(amount), 0) as total FROM board_gifts WHERE ...
-  if (
-    /SELECT\s+COALESCE\(SUM\(amount\)/i.test(ns) &&
-    /FROM\s+board_gifts/i.test(ns)
-  ) {
+  if (/SELECT\s+COALESCE\(SUM\(amount\)/i.test(ns) && /FROM\s+board_gifts/i.test(ns)) {
     return selectGiftTotal(sql, args) as unknown as Row;
   }
 
-  // Boards (with or without sub-selects)
-  if (table === "boards") {
-    return selectBoards(sql, args);
-  }
-
   // Generic table select
+  const table = extractTable(sql);
   if (!tables[table]) return [];
   let rows = [...tables[table]];
   rows = applyWhere(rows, sql, args);
