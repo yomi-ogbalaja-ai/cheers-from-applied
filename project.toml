@@ -1,1 +1,9 @@
 name = "cheers-from-applied"
+
+[metadata]
+owner = "yomi.ogbalaja@applied.co"
+description = "Employee celebration boards for Applied Intuition"
+maintainers = [
+  "yomi.ogbalaja@applied.co",
+  "gabriel.acosta@applied.co",
+]
