@@ -38,11 +38,25 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
     if (!existing) {
       db.prepare(`INSERT INTO badges (person_email, person_name, badge_type, board_id, reason)
-        VALUES (?, ?, 'team_player', ?, 'Showed up for a teammate's milestone')`
-      ).run(body.author_email, body.author_name, id);
+        VALUES (?, ?, 'team_player', ?, ?)`
+      ).run(body.author_email, body.author_name, id, "Showed up for a teammate's milestone");
     }
   }
 
   const post = db.prepare("SELECT * FROM board_posts WHERE id = ?").get(postId);
   return NextResponse.json(post, { status: 201 });
+}
+
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const db = getDb();
+  const { postId, message } = await req.json();
+  if (!postId) return NextResponse.json({ error: "postId required" }, { status: 400 });
+
+  db.prepare("UPDATE board_posts SET message = ? WHERE id = ? AND board_id = ?")
+    .run(message ?? null, postId, id);
+
+  const post = db.prepare("SELECT * FROM board_posts WHERE id = ?").get(postId);
+  if (!post) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  return NextResponse.json(post);
 }

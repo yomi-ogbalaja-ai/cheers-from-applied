@@ -221,7 +221,51 @@ function fmtDate(s: string) {
 }
 
 // ─── Post Tile (full, used in wall view + receiver view) ─────────────────────
-function PostTile({ post }: { post: Post }) {
+function PostTile({ post, onUpdate }: { post: Post; onUpdate?: () => Promise<void> }) {
+  const [editing, setEditing] = useState(false);
+  const [editMsg, setEditMsg] = useState(post.message ?? "");
+  const [saving, setSaving] = useState(false);
+
+  async function saveEdit() {
+    setSaving(true);
+    await fetch(`/api/boards/${post.board_id}/posts`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ postId: post.id, message: editMsg }),
+    });
+    setSaving(false);
+    setEditing(false);
+    await onUpdate?.();
+  }
+
+  const editBtn = onUpdate && !post.is_manager_note ? (
+    <button onClick={() => { setEditMsg(post.message ?? ""); setEditing(true); }}
+      className="ml-auto text-xs px-2 py-0.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+      style={{ color: "var(--muted)", border: "1px solid var(--border)" }}>
+      Edit
+    </button>
+  ) : null;
+
+  const editBox = (
+    <div className="mt-2 space-y-1.5">
+      <textarea value={editMsg} onChange={e => setEditMsg(e.target.value)} rows={3}
+        className="w-full text-sm rounded-xl px-3 py-2 resize-none focus:outline-none"
+        style={{ border: "1px solid var(--accent)" }} />
+      <div className="flex gap-1.5">
+        <button onClick={saveEdit} disabled={saving}
+          className="px-3 py-1 text-xs text-white rounded-lg disabled:opacity-50"
+          style={{ background: "var(--accent)" }}>
+          {saving ? "Saving…" : "Save"}
+        </button>
+        <button onClick={() => setEditing(false)}
+          className="px-3 py-1 text-xs rounded-lg"
+          style={{ border: "1px solid var(--border)", color: "var(--muted)" }}>
+          Cancel
+        </button>
+      </div>
+    </div>
+  );
+
   if (post.is_manager_note) {
     return (
       <div className="relative rounded-2xl p-5 text-white break-inside-avoid mb-4"
@@ -241,34 +285,39 @@ function PostTile({ post }: { post: Post }) {
   }
   if (post.photo_url) {
     return (
-      <div className="rounded-2xl overflow-hidden bg-white shadow-sm break-inside-avoid mb-4" style={{ border: "1px solid var(--border)" }}>
+      <div className="group rounded-2xl overflow-hidden bg-white shadow-sm break-inside-avoid mb-4" style={{ border: "1px solid var(--border)" }}>
         <img src={post.photo_url} alt="Post photo" className="w-full object-cover max-h-64" />
         <div className="flex items-center gap-2 p-3">
           <Avatar name={post.author_name} color={post.author_avatar_color} size={7} />
           <p className="text-sm font-medium" style={{ color: "var(--text)" }}>{post.author_name}</p>
           {post.reaction && <span className="ml-auto text-lg">{post.reaction}</span>}
+          {editBtn}
         </div>
+        {editing && <div className="px-3 pb-3">{editBox}</div>}
       </div>
     );
   }
   if (post.gif_url) {
     return (
-      <div className="rounded-2xl overflow-hidden bg-white shadow-sm break-inside-avoid mb-4" style={{ border: "1px solid var(--border)" }}>
+      <div className="group rounded-2xl overflow-hidden bg-white shadow-sm break-inside-avoid mb-4" style={{ border: "1px solid var(--border)" }}>
         <img src={post.gif_url} alt={post.gif_title ?? "GIF"} className="w-full object-cover max-h-56" />
         <div className="flex items-center gap-2 p-3">
           <Avatar name={post.author_name} color={post.author_avatar_color} size={7} />
           <p className="text-sm font-medium" style={{ color: "var(--text)" }}>{post.author_name}</p>
           {post.reaction && <span className="ml-auto text-lg">{post.reaction}</span>}
+          {editBtn}
         </div>
+        {editing && <div className="px-3 pb-3">{editBox}</div>}
       </div>
     );
   }
   if (post.audio_url) {
     return (
-      <div className="rounded-2xl p-4 break-inside-avoid mb-4 shadow-sm" style={{ background: "var(--accent-light)", border: "1px solid var(--border)" }}>
+      <div className="group rounded-2xl p-4 break-inside-avoid mb-4 shadow-sm" style={{ background: "var(--accent-light)", border: "1px solid var(--border)" }}>
         <div className="flex items-center gap-2 mb-3">
           <span className="text-2xl">🎙</span>
           <span className="text-sm font-medium" style={{ color: "var(--accent)" }}>Voice message</span>
+          {editBtn}
         </div>
         <audio controls src={post.audio_url} className="w-full h-8" />
         <div className="flex items-center gap-2 mt-3">
@@ -276,11 +325,12 @@ function PostTile({ post }: { post: Post }) {
           <p className="text-sm font-medium" style={{ color: "var(--text)" }}>{post.author_name}</p>
           <p className="text-xs ml-auto" style={{ color: "var(--muted)" }}>{fmtDate(post.created_at)}</p>
         </div>
+        {editing && editBox}
       </div>
     );
   }
   return (
-    <div className="rounded-2xl bg-white p-4 shadow-sm break-inside-avoid mb-4" style={{ border: "1px solid var(--border)" }}>
+    <div className="group rounded-2xl bg-white p-4 shadow-sm break-inside-avoid mb-4" style={{ border: "1px solid var(--border)" }}>
       <div className="flex items-center gap-2 mb-2">
         <Avatar name={post.author_name} color={post.author_avatar_color} size={7} />
         <div className="min-w-0 flex-1">
@@ -293,25 +343,39 @@ function PostTile({ post }: { post: Post }) {
             {post.values_tag}
           </span>
         )}
+        {editBtn}
       </div>
-      {post.message && <p className="text-sm leading-relaxed mt-1" style={{ color: "var(--text)" }}>{post.message}</p>}
-      {post.reaction && <p className="mt-2 text-xl">{post.reaction}</p>}
+      {editing ? editBox : (
+        <>
+          {post.message && <p className="text-sm leading-relaxed mt-1" style={{ color: "var(--text)" }}>{post.message}</p>}
+          {post.reaction && <p className="mt-2 text-xl">{post.reaction}</p>}
+        </>
+      )}
     </div>
   );
 }
 
-// ─── Cheer Snippet (collated highlights view) ─────────────────────────────────
-function CheerSnippet({ post }: { post: Post }) {
-  const [expanded, setExpanded] = useState(false);
-  const mediaType = post.photo_url ? "📷" : post.gif_url ? "🎞" : post.audio_url ? "🎙" : null;
-  const preview = post.message ? post.message.slice(0, 100) + (post.message.length > 100 ? "…" : "") : null;
+// ─── Cheer Snippet (highlights view — always expanded) ────────────────────────
+function CheerSnippet({ post, onUpdate }: { post: Post; onUpdate?: () => Promise<void> }) {
+  const [editing, setEditing] = useState(false);
+  const [editMsg, setEditMsg] = useState(post.message ?? "");
+  const [saving, setSaving] = useState(false);
+
+  async function saveEdit() {
+    setSaving(true);
+    await fetch(`/api/boards/${post.board_id}/posts`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ postId: post.id, message: editMsg }),
+    });
+    setSaving(false);
+    setEditing(false);
+    await onUpdate?.();
+  }
 
   return (
-    <div
-      className="bg-white rounded-xl p-4 shadow-sm cursor-pointer transition-all hover:shadow-md"
-      style={{ border: "1px solid var(--border)" }}
-      onClick={() => setExpanded(e => !e)}
-    >
+    <div className="group bg-white rounded-xl p-4 shadow-sm transition-all hover:shadow-md"
+      style={{ border: "1px solid var(--border)" }}>
       <div className="flex items-center gap-3 mb-2">
         <Avatar name={post.author_name} color={post.author_avatar_color} size={8} />
         <div className="flex-1 min-w-0">
@@ -324,25 +388,41 @@ function CheerSnippet({ post }: { post: Post }) {
             {post.values_tag}
           </span>
         )}
-        {mediaType && (
-          <span className="text-base flex-shrink-0" title={mediaType === "📷" ? "Photo" : mediaType === "🎞" ? "GIF" : "Voice"}>
-            {mediaType}
-          </span>
-        )}
         {post.reaction && <span className="text-base flex-shrink-0">{post.reaction}</span>}
+        {onUpdate && !editing && (
+          <button onClick={() => { setEditMsg(post.message ?? ""); setEditing(true); }}
+            className="text-xs px-2 py-0.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+            style={{ color: "var(--muted)", border: "1px solid var(--border)" }}>
+            Edit
+          </button>
+        )}
       </div>
-      {!expanded && preview && (
-        <p className="text-sm leading-relaxed" style={{ color: "var(--muted)" }}>{preview}</p>
-      )}
-      {expanded && (
-        <div className="mt-2">
-          {post.message && <p className="text-sm leading-relaxed mb-2" style={{ color: "var(--text)" }}>{post.message}</p>}
-          {post.photo_url && <img src={post.photo_url} alt="Photo" className="w-full rounded-lg object-cover max-h-48 mb-2" />}
-          {post.gif_url && <img src={post.gif_url} alt="GIF" className="w-full rounded-lg object-cover max-h-40 mb-2" />}
-          {post.audio_url && <audio controls src={post.audio_url} className="w-full h-8 mb-2" />}
+      {editing ? (
+        <div className="space-y-1.5">
+          <textarea value={editMsg} onChange={e => setEditMsg(e.target.value)} rows={3}
+            className="w-full text-sm rounded-xl px-3 py-2 resize-none focus:outline-none"
+            style={{ border: "1px solid var(--accent)" }} />
+          <div className="flex gap-1.5">
+            <button onClick={saveEdit} disabled={saving}
+              className="px-3 py-1 text-xs text-white rounded-lg disabled:opacity-50"
+              style={{ background: "var(--accent)" }}>
+              {saving ? "Saving…" : "Save"}
+            </button>
+            <button onClick={() => setEditing(false)}
+              className="px-3 py-1 text-xs rounded-lg"
+              style={{ border: "1px solid var(--border)", color: "var(--muted)" }}>
+              Cancel
+            </button>
+          </div>
         </div>
+      ) : (
+        <>
+          {post.message && <p className="text-sm leading-relaxed" style={{ color: "var(--text)" }}>{post.message}</p>}
+          {post.photo_url && <img src={post.photo_url} alt="Photo" className="w-full rounded-lg object-cover max-h-48 mt-2" />}
+          {post.gif_url && <img src={post.gif_url} alt="GIF" className="w-full rounded-lg object-cover max-h-40 mt-2" />}
+          {post.audio_url && <audio controls src={post.audio_url} className="w-full h-8 mt-2" />}
+        </>
       )}
-      <p className="text-xs mt-2" style={{ color: "var(--accent)" }}>{expanded ? "Show less ↑" : "See more ↓"}</p>
     </div>
   );
 }
@@ -387,7 +467,7 @@ export default function BoardPage() {
 
   const fetchBoard = useCallback(async () => {
     const res = await fetch(`/api/boards/${id}`);
-    if (!res.ok) return;
+    if (!res.ok) { setLoading(false); return; }
     const data = await res.json();
     setBoard(data.board);
     setPosts(data.posts);
@@ -576,14 +656,19 @@ export default function BoardPage() {
           {/* Left: highlights or full wall */}
           <div className="flex-1 min-w-0">
             {/* Event collation header */}
-            <div className="rounded-2xl p-5 mb-5 flex items-center gap-4"
+            <div className="rounded-2xl p-6 mb-5"
               style={{ background: "var(--accent)", color: "#fff" }}>
-              <div className="text-4xl">{TYPE_EMOJI[board.type] ?? "🎉"}</div>
-              <div className="flex-1 min-w-0">
-                <p className="font-bold text-base truncate">{board.title}</p>
-                <p className="text-sm opacity-70">{board.honoree_name} · {board.values_tag}</p>
+              <div className="flex items-start gap-4 mb-4">
+                <div className="text-5xl flex-shrink-0 mt-1">{TYPE_EMOJI[board.type] ?? "🎉"}</div>
+                <div className="flex-1 min-w-0">
+                  <h1 className="font-extrabold text-3xl leading-tight">{board.title}</h1>
+                  {board.description && (
+                    <p className="text-xl font-medium mt-2 opacity-90 leading-snug">{board.description}</p>
+                  )}
+                  <p className="text-sm opacity-60 mt-2">{board.honoree_name} · {board.values_tag}</p>
+                </div>
               </div>
-              <div className="flex gap-4 text-center flex-shrink-0">
+              <div className="flex gap-6">
                 <div>
                   <p className="text-2xl font-bold">{posts.filter(p => !p.is_manager_note).length}</p>
                   <p className="text-xs opacity-60">cheers</p>
@@ -611,7 +696,7 @@ export default function BoardPage() {
             </div>
 
             {/* Manager note always shown first */}
-            {managerNotePost && <PostTile post={managerNotePost} />}
+            {managerNotePost && <PostTile post={managerNotePost} onUpdate={fetchBoard} />}
 
             {posts.filter(p => !p.is_manager_note).length === 0 && (
               <div className="text-center py-16" style={{ color: "var(--muted)" }}>
@@ -624,7 +709,7 @@ export default function BoardPage() {
             {!showAllPosts && (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {posts.filter(p => !p.is_manager_note).map(p => (
-                  <CheerSnippet key={p.id} post={p} />
+                  <CheerSnippet key={p.id} post={p} onUpdate={fetchBoard} />
                 ))}
               </div>
             )}
@@ -632,7 +717,7 @@ export default function BoardPage() {
             {/* Full masonry wall */}
             {showAllPosts && (
               <div className="columns-2 md:columns-3 gap-4">
-                {posts.filter(p => !p.is_manager_note).map(p => <PostTile key={p.id} post={p} />)}
+                {posts.filter(p => !p.is_manager_note).map(p => <PostTile key={p.id} post={p} onUpdate={fetchBoard} />)}
               </div>
             )}
           </div>
@@ -982,7 +1067,7 @@ export default function BoardPage() {
           {/* Messages list */}
           <div className="space-y-3">
             <p className="font-semibold" style={{ color: "var(--text)" }}>💌 All cheers from your team</p>
-            {posts.map(p => <PostTile key={p.id} post={p} />)}
+            {posts.map(p => <PostTile key={p.id} post={p} onUpdate={fetchBoard} />)}
             {posts.length === 0 && (
               <div className="text-center py-10" style={{ color: "var(--muted)" }}>
                 <p className="text-3xl mb-2">📭</p>
