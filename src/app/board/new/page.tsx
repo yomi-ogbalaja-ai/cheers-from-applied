@@ -84,6 +84,10 @@ const APPLIED_VALUES = [
   },
 ];
 
+const COVER_COLORS = [
+  "#1558D6","#0E3EA0","#10B981","#F59E0B","#EF4444","#8B5CF6","#EC4899","#0EA5E9",
+];
+
 type FormData = {
   honoreeName: string;
   honoreeEmail: string;
@@ -92,6 +96,7 @@ type FormData = {
   milestoneDate: string;
   creatorName: string;
   creatorEmail: string;
+  coverColor: string;
   privacy: "public" | "private";
   managerApproval: "yes" | "no";
   managerEmail: string;
@@ -121,6 +126,7 @@ export default function NewBoardPage() {
     managerEmail: "",
     closeDays: 30,
     valuesTag: "",
+    coverColor: "#1558D6",
   });
   const [loading, setLoading] = useState(false);
   const [created, setCreated] = useState<CreatedBoard | null>(null);
@@ -163,6 +169,7 @@ export default function NewBoardPage() {
         body: JSON.stringify({
           type: selectedType.key,
           values_tag: form.valuesTag || selectedType.tag,
+          honoree_avatar_color: form.coverColor,
           honoree_name: form.honoreeName,
           honoree_email: form.honoreeEmail,
           title: form.title,
@@ -200,7 +207,7 @@ export default function NewBoardPage() {
     setForm({
       honoreeName: "", honoreeEmail: "", title: "", description: "",
       milestoneDate: "", creatorName: "", creatorEmail: "",
-      privacy: "public", managerApproval: "no", managerEmail: "", closeDays: 30, valuesTag: "",
+      privacy: "public", managerApproval: "no", managerEmail: "", closeDays: 30, valuesTag: "", coverColor: "#1558D6",
     });
   }
 
@@ -388,6 +395,18 @@ export default function NewBoardPage() {
             {/* Settings */}
             <div className="bg-white rounded-2xl border p-5 space-y-4" style={{ borderColor: "var(--border)" }}>
               <h2 className="font-semibold text-gray-800 text-sm uppercase tracking-wide">Settings</h2>
+
+              {/* Cover color */}
+              <div>
+                <label className="block text-sm text-gray-600 mb-2">Board color</label>
+                <div className="flex gap-2 flex-wrap">
+                  {COVER_COLORS.map(c => (
+                    <button key={c} type="button" onClick={() => setField("coverColor", c)}
+                      className="w-8 h-8 rounded-full transition-all"
+                      style={{ background: c, outline: form.coverColor === c ? `3px solid ${c}` : "none", outlineOffset: "2px" }} />
+                  ))}
+                </div>
+              </div>
 
               {/* Privacy */}
               <div>

@@ -13,6 +13,18 @@
   --font: 'Inter', system-ui, sans-serif;
 }
 
+[data-theme="dark"] {
+  --bg: #0D0D0D;
+  --card: #1A1A1A;
+  --accent: #4D8EFF;
+  --accent-dark: #2D6FE0;
+  --accent-light: #1A2840;
+  --text: #F0F0F0;
+  --muted: #888888;
+  --border: #2A2A2A;
+  --border-light: #1F1F1F;
+}
+
 html {
   scroll-behavior: smooth;
   font-family: var(--font);
@@ -41,4 +53,10 @@ body {
 
 * {
   box-sizing: border-box;
+}
+
+@media print {
+  nav, .no-print { display: none !important; }
+  body { background: white !important; color: black !important; }
+  .print-break { page-break-after: always; }
 }

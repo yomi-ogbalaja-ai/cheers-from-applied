@@ -182,6 +182,12 @@ const BADGE_META: Record<string, { icon: string; color: string; label: string }>
 
 const REACTIONS = ["❤️","🎉","🙌","😂","🔥","😍","👏","💯","🥳","✨"];
 
+const VALUE_CONFETTI: Record<string, string[]> = {
+  "Win Together":      ["#1558D6","#93B4FF","#EDF2FC","#ffffff"],
+  "Be Bold":          ["#1558D6","#F59E0B","#FEF3C7","#ffffff"],
+  "Move with Urgency":["#1558D6","#10B981","#D1FAE5","#ffffff"],
+};
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 function compressImage(file: File): Promise<string> {
   return new Promise((resolve) => {
@@ -456,6 +462,7 @@ export default function BoardPage() {
   const [authorName, setAuthorName] = useState("");
   const [authorEmail, setAuthorEmail] = useState("");
   const [valueTag, setValueTag] = useState("");
+  const [anonymous, setAnonymous] = useState(false);
   const [posting, setPosting] = useState(false);
   const mediaRecRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<BlobPart[]>([]);
@@ -543,9 +550,9 @@ export default function BoardPage() {
       });
     }
     const body: Record<string, unknown> = {
-      author_name: authorName.trim(),
-      author_email: authorEmail.trim() || null,
-      author_avatar_color: `hsl(${Math.floor(Math.random() * 360)},70%,50%)`,
+      author_name: anonymous ? "A teammate" : authorName.trim(),
+      author_email: anonymous ? null : (authorEmail.trim() || null),
+      author_avatar_color: anonymous ? "#545454" : `hsl(${Math.floor(Math.random() * 360)},70%,50%)`,
       reaction: reaction || null,
     };
     if (tab === "text" || (!selectedGif && !photoData && !audio_url)) {
@@ -562,9 +569,10 @@ export default function BoardPage() {
       body: JSON.stringify(body),
     });
     if (res.ok) {
-      confetti({ particleCount: 50, spread: 60, origin: { y: 0.6 }, colors: ["#1557FF","#93B4FF","#0A3FD4","#ffffff"] });
+      const confettiColors = VALUE_CONFETTI[valueTag] ?? VALUE_CONFETTI["Win Together"];
+      confetti({ particleCount: 50, spread: 60, origin: { y: 0.6 }, colors: confettiColors });
       setMessage(""); setReaction(""); setSelectedGif(null); setPhotoData(null);
-      setAudioBlob(null); setAudioUrl(null); setTab("text"); setValueTag("");
+      setAudioBlob(null); setAudioUrl(null); setTab("text"); setValueTag(""); setAnonymous(false);
       await fetchBoard();
     }
     setPosting(false);
@@ -895,14 +903,20 @@ export default function BoardPage() {
 
                 {/* Author + Post */}
                 <div className="space-y-2">
-                  <input value={authorName} onChange={e => setAuthorName(e.target.value)}
-                    placeholder="Your name (required)"
-                    className="w-full text-sm rounded-xl px-3 py-2 focus:outline-none"
-                    style={{ border: "1px solid var(--border)" }} />
-                  <input value={authorEmail} onChange={e => setAuthorEmail(e.target.value)}
-                    placeholder="Email (optional)"
-                    className="w-full text-sm rounded-xl px-3 py-2 focus:outline-none"
-                    style={{ border: "1px solid var(--border)" }} />
+                  {!anonymous && <>
+                    <input value={authorName} onChange={e => setAuthorName(e.target.value)}
+                      placeholder="Your name (required)"
+                      className="w-full text-sm rounded-xl px-3 py-2 focus:outline-none"
+                      style={{ border: "1px solid var(--border)" }} />
+                    <input value={authorEmail} onChange={e => setAuthorEmail(e.target.value)}
+                      placeholder="Email (optional)"
+                      className="w-full text-sm rounded-xl px-3 py-2 focus:outline-none"
+                      style={{ border: "1px solid var(--border)" }} />
+                  </>}
+                  <label className="flex items-center gap-2 text-xs cursor-pointer" style={{ color: "var(--muted)" }}>
+                    <input type="checkbox" checked={anonymous} onChange={e => setAnonymous(e.target.checked)} className="rounded" />
+                    Post anonymously
+                  </label>
                   <button onClick={submitPost} disabled={posting || !authorName.trim()}
                     className="w-full py-2.5 text-white rounded-xl text-sm font-semibold transition-opacity hover:opacity-90 disabled:opacity-50"
                     style={{ background: "var(--accent)" }}>
@@ -999,7 +1013,41 @@ export default function BoardPage() {
             <p className="text-xs mt-3" style={{ color: "var(--muted)" }}>{posters.length} / {EXPECTED_TEAM.length} team members posted</p>
           </div>
 
-          {/* Export to Workday stub */}
+          {/* Action buttons */}
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              onClick={() => window.print()}
+              className="py-3 rounded-xl text-sm font-medium transition-colors"
+              style={{ border: "1px solid var(--border)", color: "var(--text)", background: "var(--bg)" }}>
+              🖨️ Print / Save PDF
+            </button>
+            <a
+              href={`/api/boards/${id}/export`}
+              className="py-3 rounded-xl text-sm font-medium text-center transition-colors"
+              style={{ border: "1px solid var(--border)", color: "var(--text)", background: "var(--bg)" }}>
+              📊 Export CSV
+            </a>
+            <button
+              onClick={async () => {
+                const res = await fetch(`/api/boards/${id}/slack`, { method: "POST" });
+                const d = await res.json();
+                alert(d.stub ? `Slack not configured: ${d.message}` : d.sent ? "Posted to Slack!" : `Failed: ${d.error}`);
+              }}
+              className="py-3 rounded-xl text-sm font-medium transition-colors"
+              style={{ border: "1px solid var(--border)", color: "var(--text)", background: "var(--bg)" }}>
+              💬 Post to Slack
+            </button>
+            <button
+              onClick={async () => {
+                const res = await fetch(`/api/boards/${id}/notify`, { method: "POST" });
+                const d = await res.json();
+                alert(d.stub ? `Email stub — would send to honoree.\n\nSubject: ${d.preview?.subject}` : d.sent ? "Email sent!" : `Failed: ${d.error}`);
+              }}
+              className="py-3 rounded-xl text-sm font-medium transition-colors"
+              style={{ border: "1px solid var(--border)", color: "var(--text)", background: "var(--bg)" }}>
+              ✉️ Notify Honoree
+            </button>
+          </div>
           <button
             onClick={() => alert("Workday export coming soon! This would push approved time-off to Workday.")}
             className="w-full py-3 rounded-2xl text-sm font-medium transition-colors"
