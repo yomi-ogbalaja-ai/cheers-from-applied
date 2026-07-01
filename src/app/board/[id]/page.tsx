@@ -16,7 +16,7 @@ interface Post {
   author_avatar_color: string; message: string | null; gif_url: string | null;
   gif_title: string | null; photo_url: string | null; audio_url: string | null;
   reaction: string | null; is_manager_note: number; created_at: string;
-  values_tag: string | null;
+  values_tag: string | null; reactions_json: string | null;
 }
 interface Gift {
   id: string; board_id: string; from_name: string; from_email: string;
@@ -226,6 +226,49 @@ function fmtDate(s: string) {
   return new Date(s).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
+const QUICK_REACTS = ["❤️","🔥","🙌","😂","👏","🎉"];
+
+function PostReactions({ post, onUpdate }: { post: Post; onUpdate?: () => Promise<void> }) {
+  const [reactions, setReactions] = useState<Record<string, number>>(
+    () => { try { return JSON.parse(post.reactions_json ?? "{}"); } catch { return {}; } }
+  );
+  const [animating, setAnimating] = useState<string | null>(null);
+
+  async function react(emoji: string) {
+    setAnimating(emoji);
+    setTimeout(() => setAnimating(null), 400);
+    const res = await fetch(`/api/boards/${post.board_id}/posts/${post.id}/react`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ emoji }),
+    });
+    if (res.ok) {
+      const d = await res.json();
+      setReactions(d.reactions ?? {});
+      await onUpdate?.();
+    }
+  }
+
+  const hasAny = Object.values(reactions).some(v => v > 0);
+  return (
+    <div className="flex gap-1 flex-wrap mt-2">
+      {QUICK_REACTS.map(e => {
+        const count = reactions[e] ?? 0;
+        return (
+          <button key={e} onClick={() => react(e)}
+            className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-xs transition-all ${animating === e ? "scale-125" : ""}`}
+            style={count > 0
+              ? { background: "var(--accent-light)", border: "1px solid var(--accent)", color: "var(--accent)" }
+              : { background: "transparent", border: "1px solid var(--border)", color: "var(--muted)" }}>
+            <span>{e}</span>
+            {count > 0 && <span className="font-medium">{count}</span>}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 // ─── Post Tile (full, used in wall view + receiver view) ─────────────────────
 function PostTile({ post, onUpdate }: { post: Post; onUpdate?: () => Promise<void> }) {
   const [editing, setEditing] = useState(false);
@@ -355,6 +398,7 @@ function PostTile({ post, onUpdate }: { post: Post; onUpdate?: () => Promise<voi
         <>
           {post.message && <p className="text-sm leading-relaxed mt-1" style={{ color: "var(--text)" }}>{post.message}</p>}
           {post.reaction && <p className="mt-2 text-xl">{post.reaction}</p>}
+          <PostReactions post={post} onUpdate={onUpdate} />
         </>
       )}
     </div>
@@ -464,6 +508,10 @@ export default function BoardPage() {
   const [valueTag, setValueTag] = useState("");
   const [anonymous, setAnonymous] = useState(false);
   const [posting, setPosting] = useState(false);
+  const [aiContext, setAiContext] = useState("");
+  const [aiLoading, setAiLoading] = useState(false);
+  const [recapText, setRecapText] = useState<string | null>(null);
+  const [recapLoading, setRecapLoading] = useState(false);
   const mediaRecRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<BlobPart[]>([]);
   const recTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -763,6 +811,30 @@ export default function BoardPage() {
                         </button>
                       ))}
                     </div>
+                    {/* AI Message Generator */}
+                    <div className="rounded-xl p-3 space-y-2" style={{ background: "var(--accent-light)" }}>
+                      <p className="text-xs font-medium" style={{ color: "var(--accent)" }}>✨ AI-generated cheer</p>
+                      <input value={aiContext} onChange={e => setAiContext(e.target.value)}
+                        placeholder="Optional: add context (e.g. 'worked on the sensor team')"
+                        className="w-full text-xs rounded-lg px-2.5 py-1.5 focus:outline-none bg-white"
+                        style={{ border: "1px solid var(--border)" }} />
+                      <button disabled={aiLoading}
+                        onClick={async () => {
+                          setAiLoading(true);
+                          const res = await fetch(`/api/boards/${id}/ai-message`, {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ milestone_type: board?.type, honoree_name: board?.honoree_name, sender_context: aiContext }),
+                          });
+                          const d = await res.json();
+                          if (d.message) setMessage(d.message);
+                          setAiLoading(false);
+                        }}
+                        className="w-full py-1.5 rounded-lg text-xs font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+                        style={{ background: "var(--accent)" }}>
+                        {aiLoading ? "Generating…" : "Generate a cheer"}
+                      </button>
+                    </div>
                     <textarea value={message} onChange={e => setMessage(e.target.value)}
                       placeholder="Write your message…" rows={3}
                       className="w-full text-sm rounded-xl px-3 py-2 resize-none focus:outline-none"
@@ -1011,6 +1083,34 @@ export default function BoardPage() {
               })}
             </div>
             <p className="text-xs mt-3" style={{ color: "var(--muted)" }}>{posters.length} / {EXPECTED_TEAM.length} team members posted</p>
+          </div>
+
+          {/* AI Recap */}
+          <div className="bg-white rounded-2xl p-5 shadow-sm" style={{ border: "1px solid var(--border)" }}>
+            <p className="font-semibold mb-3" style={{ color: "var(--text)" }}>✨ AI Highlights Recap</p>
+            {recapText ? (
+              <div className="rounded-xl p-4 text-sm leading-relaxed" style={{ background: "var(--accent-light)", color: "var(--text)" }}>
+                {recapText}
+              </div>
+            ) : (
+              <button disabled={recapLoading}
+                onClick={async () => {
+                  setRecapLoading(true);
+                  const res = await fetch(`/api/boards/${id}/ai-recap`, { method: "POST" });
+                  const d = await res.json();
+                  setRecapText(d.recap);
+                  setRecapLoading(false);
+                }}
+                className="w-full py-2.5 rounded-xl text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+                style={{ background: "var(--accent)" }}>
+                {recapLoading ? "Generating recap…" : "Generate AI highlights summary"}
+              </button>
+            )}
+            {recapText && (
+              <button onClick={() => setRecapText(null)} className="mt-2 text-xs" style={{ color: "var(--muted)" }}>
+                Regenerate
+              </button>
+            )}
           </div>
 
           {/* Action buttons */}
