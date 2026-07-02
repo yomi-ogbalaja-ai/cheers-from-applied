@@ -1,0 +1,35 @@
+{
+  "_note": "Manually transcribed from a browser tab that still had this board rendered client-side, after the 2026-07-02 production data-loss incident (see CONTEXT.md). This is a FALLBACK source, not authoritative — if the apps-platform team's point-in-time clone recovery succeeds, use that instead (it will have real emails, exact timestamps, and image URLs this transcription cannot capture). All 17 posts now recovered: Gabriel's image post recovered from his own ~/Downloads (copied to recovery/images/); Steven's and Matia's image-only posts recovered as Giphy links.",
+  "board": {
+    "honoree_name": "Harris Muhammad",
+    "title": "Congratulations, Harris! 💍",
+    "type": "milestone",
+    "values_tag": "Win Together",
+    "message_count_at_capture": 17,
+    "badge_count_at_capture": 2,
+    "gift_hours_at_capture": 0
+  },
+  "badges": [
+    { "badge_type": "team_player", "person_name": "Steven" },
+    { "badge_type": "team_player", "person_name": "MikeA" }
+  ],
+  "posts": [
+    { "author_name": "Gabriel Acosta", "author_email": "gabriel.acosta@applied.co", "date": null, "message": null, "reaction": null, "photo_local_path": "recovery/images/harris-wedding-gabriel-post.png", "note": "Image/GIF-only post, no caption. Original image recovered from Gabriel's ~/Downloads and copied here. Needs uploading to real photo storage at re-insertion time — this local path is not a servable URL." },
+    { "author_name": "Yomi", "author_email": "yomi.ogbalaja@applied.co", "date": "Jun 27", "message": "Wishing you both a lifetime of happiness and love. Congratulations!", "reaction": null },
+    { "author_name": "MikeA", "author_email": null, "date": "Jun 27", "message": "May your marriage be filled with laughter, love, and endless adventures! Super happy for the both of you as you take this step into the next chapter!", "reaction": "🎉" },
+    { "author_name": "Yuta Aida", "author_email": null, "date": "Jun 27", "message": "Wishing you both a lifetime of happiness and love. Congratulations Harris!!!! All the best and hope you have the time of your life💒🥳🎉👏", "reaction": "🥳" },
+    { "author_name": "Punit", "author_email": null, "date": "Jun 28", "message": "Wish you both a very happy married life filled with lots of love. Congratulations and all the best. Cheers!", "reaction": "🎉", "values_tag": "Win Together" },
+    { "author_name": "Abdul", "author_email": null, "date": "Jun 28", "message": "Wishing you both a lifetime of happiness and ever-growing love. Congratulations brother!", "reaction": null },
+    { "author_name": "Anne", "author_email": null, "date": "Jun 28", "message": "Hey Harris, congratulation to your new chapter in life! All the best and cheers!!", "reaction": "❤️" },
+    { "author_name": "Lena", "author_email": null, "date": "Jun 29", "message": "Congratulations Harris!!", "reaction": null },
+    { "author_name": "Heather", "author_email": null, "date": "Jun 29", "message": "Congratulations Harris! Wishing you all the best in this new chapter!!", "reaction": "🎉" },
+    { "author_name": "Ivan", "author_email": null, "date": "Jun 29", "message": "Congrats! Wishing you both a happy marriage!", "reaction": "🎉" },
+    { "author_name": "Aaron", "author_email": null, "date": "Jun 29", "message": "Congratulations! Wishing you and your partner a lifetime of happiness, love, and laughter together. 🎉", "reaction": "🥳" },
+    { "author_name": "Sean", "author_email": null, "date": "Jun 29", "message": "Congrats Harris, hope your marriage is just like the best games of table tennis - exciting and always fun!", "reaction": null },
+    { "author_name": "Phani", "author_email": null, "date": "Jun 29", "message": "Congratulations! Harris.Wishing you both a wonderful life together", "reaction": "🎉" },
+    { "author_name": "Steven", "author_email": null, "date": "Jun 29", "message": "Congratulations!! All the best for this new chapter in life!", "reaction": "❤️" },
+    { "author_name": "Steven", "author_email": null, "date": null, "message": null, "reaction": null, "gif_url": "https://giphy.com/gifs/movie-comedy-wedding-xUA7aT1vNqVWHPY1cA", "note": "GIF-only post, no caption. Link is the giphy.com page URL as given; app's existing seed data uses direct media.giphy.com/media/<id>/giphy.gif URLs, so this may need converting to that form at re-insertion time." },
+    { "author_name": "Abdoulaye", "author_email": null, "date": "Jun 29", "message": "Mabruk brother! May Allah bless you with a happy marriage!", "reaction": "🎉" },
+    { "author_name": "Matia", "author_email": null, "date": null, "message": null, "reaction": null, "gif_url": "https://giphy.com/gifs/hackernoon-hacker-noon-celebrating-cat-aLLZP2AiOCsPLYgi7G", "note": "GIF-only post, no caption. Link is the giphy.com page URL as given; app's existing seed data uses direct media.giphy.com/media/<id>/giphy.gif URLs, so this may need converting to that form at re-insertion time." }
+  ]
+}
