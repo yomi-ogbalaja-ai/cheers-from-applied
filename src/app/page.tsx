@@ -74,11 +74,6 @@ export default function HomePage() {
               Celebrate your team's milestones, big and small
             </p>
           </div>
-          <Link href="/board/new"
-            className="flex-shrink-0 text-sm font-medium px-4 py-2 rounded-md text-white transition-opacity hover:opacity-90"
-            style={{ background: "var(--accent)" }}>
-            New Board
-          </Link>
         </div>
       </div>
 
