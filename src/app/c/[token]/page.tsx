@@ -16,9 +16,6 @@ interface Post {
   reaction: string | null; is_manager_note: number; values_tag: string | null;
   created_at: string;
 }
-interface Gift {
-  id: string; status: string; amount: number;
-}
 
 const TYPE_EMOJI: Record<string, string> = {
   birthday: "🎂", wedding: "💍", new_baby: "👶", work_anniversary: "🥂",
@@ -42,7 +39,6 @@ export default function SharedBoardPage() {
   const { token } = useParams<{ token: string }>();
   const [board, setBoard] = useState<Board | null>(null);
   const [posts, setPosts] = useState<Post[]>([]);
-  const [gifts, setGifts] = useState<Gift[]>([]);
   const [notFound, setNotFound] = useState(false);
   const confettiFired = useRef(false);
 
@@ -57,7 +53,6 @@ export default function SharedBoardPage() {
         if (!data) return;
         setBoard(data.board);
         setPosts(data.posts ?? []);
-        setGifts(data.gifts ?? []);
         if (!confettiFired.current) {
           confettiFired.current = true;
           confetti({ particleCount: 70, spread: 80, origin: { y: 0.3 },
@@ -86,7 +81,6 @@ export default function SharedBoardPage() {
     );
   }
 
-  const approvedHrs = gifts.filter(g => g.status === "approved").reduce((s, g) => s + g.amount, 0);
   const cheerPosts = posts.filter(p => !p.is_manager_note);
   const typeEmoji = TYPE_EMOJI[board.type] ?? "🎉";
 
@@ -119,11 +113,6 @@ export default function SharedBoardPage() {
           <span className="bg-white/20 backdrop-blur text-white text-xs font-medium px-3 py-1 rounded-full border border-white/30">
             {cheerPosts.length} cheer{cheerPosts.length !== 1 ? "s" : ""}
           </span>
-          {approvedHrs > 0 && (
-            <span className="bg-white/20 backdrop-blur text-white text-xs font-medium px-3 py-1 rounded-full border border-white/30">
-              ⏱ {approvedHrs}h gifted
-            </span>
-          )}
         </div>
       </div>
 

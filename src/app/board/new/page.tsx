@@ -88,6 +88,9 @@ const COVER_COLORS = [
   "#1558D6","#0E3EA0","#10B981","#F59E0B","#EF4444","#8B5CF6","#EC4899","#0EA5E9",
 ];
 
+// Types that are private-only (no public option)
+const PRIVATE_ONLY_TYPES = new Set(["get_well", "personal_achievement"]);
+
 type FormData = {
   honoreeName: string;
   honoreeEmail: string;
@@ -98,8 +101,6 @@ type FormData = {
   creatorEmail: string;
   coverColor: string;
   privacy: "public" | "private";
-  managerApproval: "yes" | "no";
-  managerEmail: string;
   closeDays: number;
   valuesTag: string;
 };
@@ -122,8 +123,6 @@ export default function NewBoardPage() {
     creatorName: "",
     creatorEmail: "",
     privacy: "public",
-    managerApproval: "no",
-    managerEmail: "",
     closeDays: 30,
     valuesTag: "",
     coverColor: "#1558D6",
@@ -131,6 +130,15 @@ export default function NewBoardPage() {
   const [loading, setLoading] = useState(false);
   const [created, setCreated] = useState<CreatedBoard | null>(null);
   const [copied, setCopied] = useState<"board" | "share" | null>(null);
+
+  // Auto-populate creator from localStorage
+  useEffect(() => {
+    const savedName = localStorage.getItem("cheer_creator_name");
+    const savedEmail = localStorage.getItem("cheer_creator_email");
+    if (savedName || savedEmail) {
+      setForm(f => ({ ...f, creatorName: savedName ?? f.creatorName, creatorEmail: savedEmail ?? f.creatorEmail }));
+    }
+  }, []);
 
   useEffect(() => {
     if (step === 3 && created) {
@@ -140,7 +148,8 @@ export default function NewBoardPage() {
 
   function handleTypeSelect(t: MilestoneType) {
     setSelectedType(t);
-    setForm(f => ({ ...f, valuesTag: t.tag }));
+    const forcePrivate = PRIVATE_ONLY_TYPES.has(t.key);
+    setForm(f => ({ ...f, valuesTag: t.tag, privacy: forcePrivate ? "private" : f.privacy }));
     setStep(2);
   }
 
@@ -178,13 +187,14 @@ export default function NewBoardPage() {
           created_by_name: form.creatorName,
           created_by: form.creatorEmail,
           is_private: form.privacy === "private",
-          requires_gift_approval: form.managerApproval === "yes",
-          gift_manager_email: form.managerEmail,
           close_days: form.closeDays,
         }),
       });
       if (!res.ok) throw new Error("Failed to create board");
       const data = (await res.json()) as CreatedBoard;
+      // Save creator identity for future boards
+      if (form.creatorName) localStorage.setItem("cheer_creator_name", form.creatorName);
+      if (form.creatorEmail) localStorage.setItem("cheer_creator_email", form.creatorEmail);
       setCreated(data);
       setStep(3);
     } catch {
@@ -207,7 +217,7 @@ export default function NewBoardPage() {
     setForm({
       honoreeName: "", honoreeEmail: "", title: "", description: "",
       milestoneDate: "", creatorName: "", creatorEmail: "",
-      privacy: "public", managerApproval: "no", managerEmail: "", closeDays: 30, valuesTag: "", coverColor: "#1558D6",
+      privacy: "public", closeDays: 30, valuesTag: "", coverColor: "#1558D6",
     });
   }
 
@@ -411,59 +421,29 @@ export default function NewBoardPage() {
               {/* Privacy */}
               <div>
                 <label className="block text-sm text-gray-600 mb-2">Privacy</label>
-                <div className="flex gap-3">
-                  {(["public", "private"] as const).map((p) => (
-                    <button
-                      key={p}
-                      type="button"
-                      onClick={() => setField("privacy", p)}
-                      className={`flex-1 py-2 rounded-xl text-sm font-medium border-2 transition-colors ${form.privacy === p ? "border-blue-600 bg-blue-50 text-blue-700" : "border-gray-200 text-gray-500 hover:border-blue-200"}`}
-                    >
-                      {p === "public" ? "🌐 Public" : "🔒 Private"}
-                    </button>
-                  ))}
-                </div>
+                {selectedType && PRIVATE_ONLY_TYPES.has(selectedType.key) ? (
+                  <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl border-2 text-sm font-medium"
+                    style={{ borderColor: "var(--border)", color: "var(--muted)" }}>
+                    🔒 Private only — sensitive milestone
+                  </div>
+                ) : (
+                  <div className="flex gap-3">
+                    {(["public", "private"] as const).map((p) => (
+                      <button
+                        key={p}
+                        type="button"
+                        onClick={() => setField("privacy", p)}
+                        className={`flex-1 py-2 rounded-xl text-sm font-medium border-2 transition-colors ${form.privacy === p ? "border-blue-600 bg-blue-50 text-blue-700" : "border-gray-200 text-gray-500 hover:border-blue-200"}`}
+                      >
+                        {p === "public" ? "🌐 Public" : "🔒 Private"}
+                      </button>
+                    ))}
+                  </div>
+                )}
                 <p className="text-xs text-gray-400 mt-1.5">
                   {form.privacy === "public" ? "Anyone with the link can view and post." : "Only invited people can view and post."}
                 </p>
               </div>
-
-              {/* Manager approval */}
-              <div>
-                <label className="block text-sm text-gray-600 mb-2">Manager approval for time-off gifts?</label>
-                <div className="flex gap-3">
-                  {(["yes", "no"] as const).map((v) => (
-                    <label
-                      key={v}
-                      className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-xl border-2 cursor-pointer text-sm font-medium transition-colors ${form.managerApproval === v ? "border-blue-600 bg-blue-50 text-blue-700" : "border-gray-200 text-gray-500 hover:border-blue-200"}`}
-                    >
-                      <input
-                        type="radio"
-                        name="managerApproval"
-                        value={v}
-                        checked={form.managerApproval === v}
-                        onChange={() => setField("managerApproval", v)}
-                        className="sr-only"
-                      />
-                      {v === "yes" ? "✅ Yes" : "🚫 No"}
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              {form.managerApproval === "yes" && (
-                <div>
-                  <label className="block text-sm text-gray-600 mb-1">Manager email</label>
-                  <input
-                    type="email"
-                    value={form.managerEmail}
-                    onChange={(e) => setField("managerEmail", e.target.value)}
-                    placeholder="manager@company.com"
-                    className="w-full border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:outline-none"
-                    style={{ borderColor: "var(--border)" }}
-                  />
-                </div>
-              )}
 
               {/* Close days */}
               <div>

@@ -8,7 +8,7 @@ interface Board {
   id: string; title: string; honoree_name: string; honoree_email: string;
   honoree_avatar_color: string; type: string; description: string;
   milestone_date: string; values_tag: string; is_private: number;
-  share_token: string; requires_gift_approval: number; gift_manager_email: string;
+  share_token: string;
   status: string; created_by: string; created_by_name: string; expires_at: string;
 }
 interface Post {
@@ -17,11 +17,6 @@ interface Post {
   gif_title: string | null; photo_url: string | null; audio_url: string | null;
   reaction: string | null; is_manager_note: number; created_at: string;
   values_tag: string | null; reactions_json: string | null;
-}
-interface Gift {
-  id: string; board_id: string; from_name: string; from_email: string;
-  gift_type: string; amount: number; note: string | null; status: string;
-  approved_by: string | null; workday_balance: number | null; created_at: string;
 }
 interface Badge {
   id: string; person_email: string; person_name: string; badge_type: string;
@@ -486,7 +481,6 @@ export default function BoardPage() {
 
   const [board, setBoard] = useState<Board | null>(null);
   const [posts, setPosts] = useState<Post[]>([]);
-  const [gifts, setGifts] = useState<Gift[]>([]);
   const [badges, setBadges] = useState<Badge[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAllPosts, setShowAllPosts] = useState(false);
@@ -523,6 +517,11 @@ export default function BoardPage() {
   const [managerNote, setManagerNote] = useState("");
   const [savingNote, setSavingNote] = useState(false);
 
+  // Badge modal state
+  const [badgeModal, setBadgeModal] = useState(false);
+  const [badgeForm, setBadgeForm] = useState({ person_name: "", person_email: "", badge_type: "team_player", reason: "" });
+  const [badgeLoading, setBadgeLoading] = useState(false);
+
   async function searchGifs(q: string) {
     setGifLoading(true);
     try {
@@ -540,7 +539,6 @@ export default function BoardPage() {
     const data = await res.json();
     setBoard(data.board);
     setPosts(data.posts);
-    setGifts(data.gifts);
     setBadges(data.badges);
     setLoading(false);
   }, [id]);
@@ -655,7 +653,7 @@ export default function BoardPage() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        author_name: board?.gift_manager_email ?? "Manager",
+        author_name: "Manager",
         author_avatar_color: "#6366f1",
         message: managerNote.trim(),
         is_manager_note: true,
@@ -666,14 +664,22 @@ export default function BoardPage() {
     await fetchBoard();
   }
 
-  // ── Gift action ───────────────────────────────────────────────────────────
-  async function giftAction(giftId: string, action: "approve" | "reject") {
-    await fetch(`/api/boards/${id}/gifts`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ giftId, action, approved_by: board?.gift_manager_email }),
-    });
-    await fetchBoard();
+  // ── Give Badge ────────────────────────────────────────────────────────────
+  async function giveBadge(e: React.FormEvent) {
+    e.preventDefault();
+    setBadgeLoading(true);
+    try {
+      await fetch(`/api/boards/${id}/badges`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(badgeForm),
+      });
+      setBadgeModal(false);
+      setBadgeForm({ person_name: "", person_email: "", badge_type: "team_player", reason: "" });
+      fetchBoard();
+    } finally {
+      setBadgeLoading(false);
+    }
   }
 
   if (loading) return (
@@ -694,7 +700,6 @@ export default function BoardPage() {
   const shareUrl = typeof window !== "undefined" ? `${window.location.origin}/c/${board.share_token}` : "";
   const managerNotePost = posts.find(p => p.is_manager_note);
   const posters = [...new Set(posts.filter(p => !p.is_manager_note).map(p => p.author_name))];
-  const totalHrs = gifts.filter(g => g.status === "approved").reduce((s, g) => s + g.amount, 0);
 
   const views = [
     { key: "board", label: "🎉 The Board" },
@@ -749,12 +754,6 @@ export default function BoardPage() {
                   <p className="text-2xl font-bold">{posts.filter(p => !p.is_manager_note).length}</p>
                   <p className="text-xs opacity-60">cheers</p>
                 </div>
-                {totalHrs > 0 && (
-                  <div>
-                    <p className="text-2xl font-bold">{totalHrs}</p>
-                    <p className="text-xs opacity-60">gift hrs</p>
-                  </div>
-                )}
               </div>
             </div>
 
@@ -1068,44 +1067,14 @@ export default function BoardPage() {
                 </button>
               </div>
             )}
-          </div>
-
-          {/* Gift approval queue */}
-          <div className="bg-white rounded-2xl p-5 shadow-sm" style={{ border: "1px solid var(--border)" }}>
-            <p className="font-semibold mb-3" style={{ color: "var(--text)" }}>🎁 Gift Approval Queue</p>
-            {gifts.length === 0 ? (
-              <p className="text-sm" style={{ color: "var(--muted)" }}>No gift contributions yet.</p>
-            ) : (
-              <div className="space-y-2">
-                {gifts.map(g => (
-                  <div key={g.id} className="flex items-center gap-3 p-3 rounded-xl" style={{ background: "var(--bg)" }}>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium" style={{ color: "var(--text)" }}>{g.from_name}</p>
-                      <p className="text-xs" style={{ color: "var(--muted)" }}>
-                        {g.amount}h · {g.gift_type.replace(/_/g," ")}
-                        {g.note ? ` · "${g.note}"` : ""}
-                      </p>
-                    </div>
-                    {g.status === "pending" ? (
-                      <div className="flex gap-1.5">
-                        <button onClick={() => giftAction(g.id, "approve")}
-                          className="px-3 py-1 bg-green-500 text-white text-xs rounded-lg hover:bg-green-600">
-                          Approve
-                        </button>
-                        <button onClick={() => giftAction(g.id, "reject")}
-                          className="px-3 py-1 bg-red-100 text-red-600 text-xs rounded-lg hover:bg-red-200">
-                          Reject
-                        </button>
-                      </div>
-                    ) : (
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${g.status === "approved" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-600"}`}>
-                        {g.status}
-                      </span>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
+            <div className="mt-4">
+              <button
+                onClick={() => setBadgeModal(true)}
+                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium border-2 transition-colors"
+                style={{ borderColor: "var(--accent)", color: "var(--accent)", background: "var(--accent-light)" }}>
+                🏅 Give Badge
+              </button>
+            </div>
           </div>
 
           {/* Team participation checklist */}
@@ -1220,10 +1189,6 @@ export default function BoardPage() {
                 <p className="text-2xl font-bold">{badges.length}</p>
                 <p className="text-xs text-white/70">Badges</p>
               </div>
-              <div className="text-center">
-                <p className="text-2xl font-bold">{totalHrs}</p>
-                <p className="text-xs text-white/70">Gift hrs</p>
-              </div>
             </div>
             <button
               onClick={() => { navigator.clipboard.writeText(shareUrl); alert("Link copied!"); }}
@@ -1264,6 +1229,71 @@ export default function BoardPage() {
                 <p className="text-sm">No messages yet. Share the board link!</p>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Give Badge Modal */}
+      {badgeModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.4)" }}>
+          <div className="w-full max-w-md rounded-2xl p-6 shadow-xl" style={{ background: "var(--card)", border: "1px solid var(--border)" }}>
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-lg font-bold" style={{ color: "var(--text)" }}>🏅 Give a Badge</h2>
+              <button onClick={() => setBadgeModal(false)} className="text-xl" style={{ color: "var(--muted)" }}>×</button>
+            </div>
+            <form onSubmit={giveBadge} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-1" style={{ color: "var(--text)" }}>Recipient name *</label>
+                <input required type="text" value={badgeForm.person_name}
+                  onChange={e => setBadgeForm(f => ({ ...f, person_name: e.target.value }))}
+                  placeholder="e.g. Alex Johnson"
+                  className="w-full rounded-xl px-4 py-2.5 text-sm focus:outline-none"
+                  style={{ border: "1px solid var(--border)", background: "var(--bg)" }} />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1" style={{ color: "var(--text)" }}>Recipient email</label>
+                <input type="email" value={badgeForm.person_email}
+                  onChange={e => setBadgeForm(f => ({ ...f, person_email: e.target.value }))}
+                  placeholder="alex@company.com"
+                  className="w-full rounded-xl px-4 py-2.5 text-sm focus:outline-none"
+                  style={{ border: "1px solid var(--border)", background: "var(--bg)" }} />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1" style={{ color: "var(--text)" }}>Badge type *</label>
+                <select required value={badgeForm.badge_type}
+                  onChange={e => setBadgeForm(f => ({ ...f, badge_type: e.target.value }))}
+                  className="w-full rounded-xl px-4 py-2.5 text-sm focus:outline-none"
+                  style={{ border: "1px solid var(--border)", background: "var(--bg)", color: "var(--text)" }}>
+                  <option value="team_player">🤝 Team Player</option>
+                  <option value="cheer_champion">📣 Cheer Champion</option>
+                  <option value="birthday_star">🎂 Birthday Star</option>
+                  <option value="rising_star">⭐ Rising Star</option>
+                  <option value="generous_soul">💛 Generous Soul</option>
+                  <option value="milestone_maker">🏆 Milestone Maker</option>
+                  <option value="culture_carrier">🌟 Culture Carrier</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1" style={{ color: "var(--text)" }}>Reason (optional)</label>
+                <textarea rows={2} value={badgeForm.reason}
+                  onChange={e => setBadgeForm(f => ({ ...f, reason: e.target.value }))}
+                  placeholder="Why are you giving this badge?"
+                  className="w-full rounded-xl px-4 py-2.5 text-sm focus:outline-none resize-none"
+                  style={{ border: "1px solid var(--border)", background: "var(--bg)" }} />
+              </div>
+              <div className="flex gap-3 pt-1">
+                <button type="button" onClick={() => setBadgeModal(false)}
+                  className="flex-1 py-2.5 rounded-xl text-sm font-medium border transition-colors"
+                  style={{ borderColor: "var(--border)", color: "var(--muted)" }}>
+                  Cancel
+                </button>
+                <button type="submit" disabled={badgeLoading}
+                  className="flex-1 py-2.5 rounded-xl text-sm font-medium text-white disabled:opacity-50 transition-opacity hover:opacity-90"
+                  style={{ background: "var(--accent)" }}>
+                  {badgeLoading ? "Awarding…" : "Award Badge"}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
