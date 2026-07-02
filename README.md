@@ -2,6 +2,28 @@
 
 Employee celebration boards for Applied Intuition. Send shout-outs, milestone cards, and peer recognition that actually sticks.
 
+## ⚠️ Read before touching persistence or deploying
+
+**Boards created by real users must survive every deploy and every restart. This has failed in production before — see [CONTEXT.md](./CONTEXT.md) for the full incident writeup. Do not repeat it.**
+
+Hard rules for anyone (human or AI) working on this app:
+
+1. **Never let the primary persistence path be ephemeral.** Nothing in the request path may depend on local disk (`/tmp`), in-memory state, or any storage that resets on cold start/redeploy. If you see a fallback like `?? "file:/tmp/..."` or `:memory:` in the DB layer, that fallback firing in production is a data-loss bug, not a convenience.
+2. **Don't assume what's provisioned — check.** This app deploys via Applied's internal `apps-platform` to Cloud Run, not Fly/Vercel/Railway (those configs existed at various points and have been removed — they were never the real deploy target). `project.toml`'s `enable_postgres` flag controls whether a real Cloud SQL Postgres database is provisioned for this app. Before changing the DB layer, confirm what's actually wired up in the live environment:
+   ```bash
+   gcloud run services describe cheers-from-applied --project=experimental-apps-v2 --region=us-west1 \
+     --format="yaml(spec.template.spec.containers[0].env)"
+   ```
+   If `INSTANCE_CONNECTION_NAME` / `DB_USER` / `DB_NAME` are present, a Postgres instance is provisioned and should be the source of truth — don't introduce a second, disconnected persistence layer alongside it.
+3. **Never run destructive SQL (`DROP TABLE`, `TRUNCATE`, unscoped `DELETE`) against the production database without explicit human sign-off.** The Postgres instance backing this app (`exp-db` in `experimental-apps-v2`) is a **shared, multi-tenant instance used by 100+ other Applied apps** — there is no per-app isolation beyond schema/table naming. A mistake here doesn't just affect this app.
+4. **Before deploying, sync with the remote first — every time:**
+   ```bash
+   git fetch origin
+   git merge origin/main   # or rebase — just don't deploy code built on a stale/diverged base
+   ```
+   This repo has a documented history of two people building forward from different, diverged points in `main` without ever reconciling — one branch's persistence work silently never made it into what got deployed. Confirm you're building on top of the latest `origin/main`, not a local branch that has quietly forked from it (`git log --all --oneline --graph` will show if history has split).
+5. **Local dev fallbacks are fine locally, never in prod.** It's fine for `getDb()`/`getClient()` to fall back to `:memory:` or a temp file when no production DB is configured, *for local development*. It is not fine for that same fallback to be what production silently runs on because a required env var/secret was never set. If a persistence-critical env var is missing in production, fail loudly (crash/error) rather than falling back silently.
+
 ## What It Does
 
 Cheers from Applied lets teams create rich celebration boards for colleagues — birthdays, work anniversaries, promotions, farewells, or any moment worth marking. Each board lives at a shareable link and collects posts from teammates before the big reveal.
@@ -25,7 +47,7 @@ Cheers from Applied lets teams create rich celebration boards for colleagues —
 
 ### Prerequisites
 
-- Node.js 18+
+- Node.js 20+
 - npm
 
 ### Setup
@@ -43,7 +65,14 @@ npm run dev
 
 App runs at **http://localhost:3001**.
 
-The SQLite database (`data/cheers.db`) is created automatically on first run. Seed data is loaded automatically — no manual step needed.
+With no database env vars set, data is written to an ephemeral `/tmp/cheers-dev.db` SQLite file — fine for local dev, **not fine in production** (see the warning above; production throws instead of using this path). Seed data loads automatically on first run — no manual step needed.
+
+To develop against the real production database instead (e.g. to test a schema change safely — it's isolated per-app, see the persistence warning above):
+
+```bash
+apps-platform app connect-db cheers-from-applied   # in one terminal, leave running
+DB_USER="cheers-from-applied-sa@experimental-apps-v2.iam" DB_NAME="postgres" K_SERVICE="cheers-from-applied" npm run dev
+```
 
 ### Scripts
 
@@ -76,40 +105,40 @@ Email and Workday integrations are fully optional. If SMTP is not configured, em
 
 ---
 
-## Deploying to Fly.io
+## Deploying
 
-### First deploy
+This app deploys on **Applied's internal Apps Platform**, which runs it on Google Cloud Run. There is no Fly.io, Vercel, or Railway deployment — configs for those were removed; they were leftover experiments, not real deploy targets.
 
-```bash
-# Install Fly CLI: https://fly.io/docs/hands-on/install-flyctl/
+- Live app: `https://cheers-from-applied.experimental.apps.applied.dev`
+- GCP project: `experimental-apps-v2`, region `us-west1`
+- Docs: https://apps.applied.dev · Slack: `#eng-apps-platform-v2`
 
-# Create the app (once)
-fly apps create cheers-from-applied
-
-# Create a persistent volume for SQLite
-fly volumes create cheers_data --region iad --size 1
-
-# Set secrets (optional — only if using email)
-fly secrets set SMTP_HOST=smtp.example.com --app cheers-from-applied
-fly secrets set SMTP_PORT=587 --app cheers-from-applied
-fly secrets set SMTP_USER=user@example.com --app cheers-from-applied
-fly secrets set SMTP_PASS=yourpassword --app cheers-from-applied
-
-# Deploy
-fly deploy
-```
-
-### Subsequent deploys
+**Before every deploy:**
 
 ```bash
-fly deploy
+git fetch origin
+git merge origin/main    # make sure you're building on the latest remote history, not a stale fork
 ```
 
-The `fly.toml` is already configured with:
-- Region: `iad` (US East)
-- Port: `8080`
-- Persistent volume mounted at `/data` for the SQLite database
-- Auto-stop/start for cost efficiency on low-traffic apps
+**Deploy:**
+
+```bash
+apps-platform auth login          # once
+apps-platform app deploy --service cheers-from-applied
+```
+
+`project.toml` declares what infrastructure Apps Platform provisions for this app (`enable_postgres`, `enable_secrets`, etc.). If `enable_postgres = true`, Cloud Run gets `INSTANCE_CONNECTION_NAME`, `DB_USER`, `DB_NAME` env vars for a Cloud SQL Postgres database automatically — check current provisioning with:
+
+```bash
+gcloud run services describe cheers-from-applied --project=experimental-apps-v2 --region=us-west1 \
+  --format="yaml(spec.template.spec.containers[0].env)"
+```
+
+To connect to the production database locally for debugging (read-only unless you know what you're doing — see the persistence rules above):
+
+```bash
+apps-platform app connect-db cheers-from-applied --connect
+```
 
 ---
 
@@ -117,14 +146,14 @@ The `fly.toml` is already configured with:
 
 | Layer | Technology |
 |---|---|
-| Framework | Next.js 15 (App Router) |
+| Framework | Next.js 16 (App Router) |
 | Language | TypeScript |
 | Styling | Tailwind CSS v4 |
-| Database | SQLite via better-sqlite3 |
+| Database | `src/lib/db-client.ts` — Postgres (via `pg` + `@google-cloud/cloud-sql-connector` with IAM auth) against the Cloud SQL instance Apps Platform provisions for this app (`project.toml` `enable_postgres = true`), scoped to a per-app schema (`cheers_from_applied`, falling back to `public`). Falls back to an ephemeral local SQLite file (`@libsql/client`) only in local dev with no DB configured, and throws instead of silently falling back if that would happen in production. |
 | Animations | canvas-confetti |
 | Email | nodemailer |
-| Runtime | Node.js 18+ |
-| Deploy | Fly.io (Docker) |
+| Runtime | Node.js 20+ |
+| Deploy | Applied Apps Platform → Google Cloud Run |
 
 ---
 

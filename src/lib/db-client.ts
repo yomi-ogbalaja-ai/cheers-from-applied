@@ -1,21 +1,169 @@
-// Async database client backed by @libsql/client (SQLite-compatible).
-// Uses Turso when TURSO_DATABASE_URL is set, otherwise a local /tmp file.
-// /tmp is ephemeral per cold-start on Vercel — add TURSO_DATABASE_URL for persistence.
-import { createClient, type InValue } from "@libsql/client";
+// Async database client. See README.md "Read before touching persistence or
+// deploying" before changing anything in this file — a misconfigured fallback
+// here is exactly what caused a real production data-loss incident on
+// 2026-07-02 (see CONTEXT.md).
+//
+// Backend selection, in order:
+//   1. DATABASE_URL set            → connect directly (generic escape hatch).
+//   2. INSTANCE_CONNECTION_NAME set → production on Cloud Run. Apps Platform
+//      provisions this (project.toml `enable_postgres = true`) and injects
+//      INSTANCE_CONNECTION_NAME/DB_USER/DB_NAME. Connects via Cloud SQL
+//      Connector with IAM auth (no password ever touches this code).
+//   3. DB_USER set (no INSTANCE_CONNECTION_NAME) → local dev against the real
+//      database through `apps-platform app connect-db cheers-from-applied`,
+//      which tunnels to localhost:5432 and handles auth itself.
+//   4. NODE_ENV=production and none of the above → throw. Refusing to fall
+//      back to ephemeral storage in production is the whole point.
+//   5. Otherwise (local dev, nothing configured) → ephemeral local SQLite
+//      file for zero-config quick start. Local-dev-only; unreachable in prod.
+import { createClient as createLibsqlClient, type InValue } from "@libsql/client";
+import { Pool, type PoolClient, types as pgTypes } from "pg";
 
-let _client: ReturnType<typeof createClient> | null = null;
-let _initPromise: Promise<void> | null = null;
+// pg returns COUNT(*)/bigint columns as strings by default (avoids precision
+// loss above Number.MAX_SAFE_INTEGER). SQLite/libsql returned these as native
+// numbers, and callers (e.g. the landing page's `reduce((s, b) => s + b.post_count)`)
+// rely on that — a stringified count there silently turns `+` into concatenation.
+// This app never has counts anywhere near unsafe-integer range, so parse as number.
+pgTypes.setTypeParser(20 /* int8/bigint */, (val: string) => parseInt(val, 10));
 
-function getClient() {
-  if (_client) return _client;
-  _client = createClient({
-    url: process.env.TURSO_DATABASE_URL ?? "file:/tmp/cheers.db",
-    authToken: process.env.TURSO_AUTH_TOKEN,
-  });
-  return _client;
+type Row = Record<string, unknown>;
+
+interface Backend {
+  kind: "pg" | "sqlite";
+  query(sql: string, args: unknown[]): Promise<Row[]>;
+  exec(sql: string): Promise<void>;
 }
 
-const SCHEMA = `
+function toPositional(sql: string): string {
+  let i = 0;
+  return sql.replace(/\?/g, () => `$${++i}`);
+}
+
+// Apps Platform convention: each app gets an isolated schema named after the
+// service (hyphens → underscores), provisioned and granted to the app's DB
+// role by Apps Platform itself when `enable_postgres = true` (the app's role
+// has no privilege to create schemas on its own — least privilege on a shared
+// instance). `public` is kept as a fallback in the search_path so this still
+// works before/without that provisioning having run.
+const PG_SCHEMA_NAME = (process.env.K_SERVICE ?? "cheers-from-applied").replace(/-/g, "_");
+
+async function makePgBackend(pool: Pool): Promise<Backend> {
+  // pg.Pool multiplexes queries across physical connections. Relying on a
+  // pool-wide `SET search_path` (e.g. a `pool.on('connect', ...)` listener)
+  // depends on internal emit-ordering to guarantee it runs before the next
+  // query on that same connection — not worth the risk on the persistence
+  // layer that caused the last incident. Instead, set it explicitly on the
+  // same checked-out client immediately before every query.
+  async function withClient<T>(fn: (client: PoolClient) => Promise<T>): Promise<T> {
+    const client = await pool.connect();
+    try {
+      await client.query(`SET search_path TO ${PG_SCHEMA_NAME}, public`);
+      return await fn(client);
+    } finally {
+      client.release();
+    }
+  }
+
+  return {
+    kind: "pg",
+    async query(sql, args) {
+      return withClient(async client => {
+        const res = await client.query(toPositional(sql), args);
+        return res.rows;
+      });
+    },
+    async exec(sql) {
+      await withClient(async client => {
+        await client.query(sql);
+      });
+    },
+  };
+}
+
+function makeSqliteBackend(client: ReturnType<typeof createLibsqlClient>): Backend {
+  return {
+    kind: "sqlite",
+    async query(sql, args) {
+      const res = await client.execute({ sql, args: args as InValue[] });
+      return res.rows as unknown as Row[];
+    },
+    async exec(sql) {
+      await client.execute(sql);
+    },
+  };
+}
+
+const NOW_PG = "to_char(now() AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI:SS')";
+
+const SCHEMA_PG = `
+CREATE TABLE IF NOT EXISTS boards (
+  id TEXT PRIMARY KEY,
+  honoree_name TEXT NOT NULL,
+  honoree_email TEXT,
+  honoree_avatar_color TEXT,
+  type TEXT NOT NULL,
+  title TEXT NOT NULL,
+  description TEXT,
+  milestone_date TEXT,
+  values_tag TEXT,
+  is_private INTEGER DEFAULT 0,
+  public_share_enabled INTEGER DEFAULT 1,
+  share_token TEXT,
+  requires_gift_approval INTEGER DEFAULT 0,
+  gift_manager_email TEXT,
+  status TEXT DEFAULT 'active',
+  created_by TEXT,
+  created_by_name TEXT,
+  created_at TEXT DEFAULT ${NOW_PG},
+  expires_at TEXT
+);
+CREATE TABLE IF NOT EXISTS board_posts (
+  id TEXT PRIMARY KEY,
+  board_id TEXT NOT NULL,
+  author_name TEXT NOT NULL,
+  author_email TEXT,
+  author_avatar_color TEXT,
+  message TEXT,
+  gif_url TEXT,
+  gif_title TEXT,
+  photo_url TEXT,
+  audio_url TEXT,
+  reaction TEXT,
+  reactions_json TEXT DEFAULT '{}',
+  is_manager_note INTEGER DEFAULT 0,
+  values_tag TEXT,
+  created_at TEXT DEFAULT ${NOW_PG}
+);
+CREATE TABLE IF NOT EXISTS board_gifts (
+  id TEXT PRIMARY KEY,
+  board_id TEXT NOT NULL,
+  from_name TEXT NOT NULL,
+  from_email TEXT NOT NULL,
+  gift_type TEXT,
+  amount DOUBLE PRECISION,
+  note TEXT,
+  status TEXT DEFAULT 'pending',
+  approved_by TEXT,
+  workday_balance DOUBLE PRECISION,
+  created_at TEXT DEFAULT ${NOW_PG}
+);
+CREATE TABLE IF NOT EXISTS badges (
+  id SERIAL PRIMARY KEY,
+  person_email TEXT NOT NULL,
+  person_name TEXT NOT NULL,
+  badge_type TEXT NOT NULL,
+  board_id TEXT,
+  reason TEXT,
+  awarded_at TEXT DEFAULT ${NOW_PG}
+);
+CREATE INDEX IF NOT EXISTS idx_posts_board ON board_posts(board_id);
+CREATE INDEX IF NOT EXISTS idx_boards_token ON boards(share_token);
+CREATE INDEX IF NOT EXISTS idx_boards_status ON boards(status);
+CREATE INDEX IF NOT EXISTS idx_badges_board ON badges(board_id);
+CREATE INDEX IF NOT EXISTS idx_badges_email ON badges(person_email);
+`;
+
+const SCHEMA_SQLITE = `
 CREATE TABLE IF NOT EXISTS boards (
   id TEXT PRIMARY KEY,
   honoree_name TEXT NOT NULL,
@@ -85,9 +233,9 @@ CREATE INDEX IF NOT EXISTS idx_badges_email ON badges(person_email);
 
 const EXPIRES_AT = "2026-08-25";
 
-async function seed(client: ReturnType<typeof createClient>) {
-  const { rows } = await client.execute("SELECT COUNT(*) as c FROM boards");
-  if ((rows[0] as Record<string, unknown>).c !== 0) return;
+async function seed(backend: Backend) {
+  const rows = await backend.query("SELECT COUNT(*) as c FROM boards", []);
+  if (Number((rows[0] as Row)?.c ?? 0) !== 0) return;
   const n = new Date().toISOString().replace("T", " ").slice(0, 19);
 
   const boards = [
@@ -105,17 +253,18 @@ async function seed(client: ReturnType<typeof createClient>) {
       "jordan.smith@applied.co", "Jordan Smith", EXPIRES_AT, n],
   ];
   for (const b of boards) {
-    await client.execute({
-      sql: `INSERT OR IGNORE INTO boards
+    await backend.query(
+      `INSERT INTO boards
         (id,honoree_name,honoree_email,honoree_avatar_color,type,title,description,values_tag,
          is_private,public_share_enabled,share_token,requires_gift_approval,gift_manager_email,
          status,created_by,created_by_name,expires_at,created_at)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-      args: b as InValue[],
-    });
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+        ON CONFLICT (id) DO NOTHING`,
+      b,
+    );
   }
 
-  const posts: InValue[][] = [
+  const posts = [
     ["post-1","board-alex-bday","Jordan Smith","jordan.smith@applied.co","#3b82f6",1,
       "Alex — you've been an incredible force on the team this past year. Happy Birthday!",null,null,null,"🎉","{}",null,n],
     ["post-2","board-alex-bday","Maya Patel","maya.patel@applied.co","#ec4899",0,
@@ -144,54 +293,112 @@ async function seed(client: ReturnType<typeof createClient>) {
       null,null,null,"{}",null,n],
   ];
   for (const p of posts) {
-    await client.execute({
-      sql: `INSERT OR IGNORE INTO board_posts
+    await backend.query(
+      `INSERT INTO board_posts
         (id,board_id,author_name,author_email,author_avatar_color,is_manager_note,
          message,gif_url,gif_title,photo_url,reaction,reactions_json,values_tag,created_at)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-      args: p,
-    });
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+        ON CONFLICT (id) DO NOTHING`,
+      p,
+    );
   }
 
-  const gifts: InValue[][] = [
+  const gifts = [
     ["gift-1","board-alex-bday","Jordan Smith","jordan.smith@applied.co","time_off_hours",8,
       "Take a long weekend on us — you've earned it!","pending",null,120,n],
     ["gift-2","board-alex-bday","Maya Patel","maya.patel@applied.co","time_off_hours",4,
       "A little extra rest for your birthday week!","approved",null,88,n],
   ];
   for (const g of gifts) {
-    await client.execute({
-      sql: `INSERT OR IGNORE INTO board_gifts
+    await backend.query(
+      `INSERT INTO board_gifts
         (id,board_id,from_name,from_email,gift_type,amount,note,status,approved_by,workday_balance,created_at)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
-      args: g,
-    });
+        VALUES (?,?,?,?,?,?,?,?,?,?,?)
+        ON CONFLICT (id) DO NOTHING`,
+      g,
+    );
   }
 
-  const bgs: InValue[][] = [
+  const badges = [
     ["alex.chen@applied.co","Alex Chen","birthday_star","board-alex-bday","Celebrated by 5 teammates!",n],
     ["jordan.smith@applied.co","Jordan Smith","cheer_champion","board-alex-bday","Kicked off 2 boards",n],
     ["maya.patel@applied.co","Maya Patel","generous_soul","board-alex-bday","Gifted time off hours",n],
     ["sam.lee@applied.co","Sam Lee","rising_star","board-sam-promo","Earned a well-deserved promotion!",n],
     ["yomi.ogbalaja@applied.co","Yomi Ogbalaja","team_player","board-alex-bday","Showed up for 3 teammates",n],
   ];
-  for (const b of bgs) {
-    await client.execute({
-      sql: `INSERT OR IGNORE INTO badges (person_email,person_name,badge_type,board_id,reason,awarded_at)
+  for (const b of badges) {
+    await backend.query(
+      `INSERT INTO badges (person_email,person_name,badge_type,board_id,reason,awarded_at)
         VALUES (?,?,?,?,?,?)`,
-      args: b,
-    });
+      b,
+    );
   }
 }
 
-async function doInit(): Promise<void> {
-  const client = getClient();
-  // Run schema one statement at a time (libsql doesn't support multi-statement in one execute)
-  const stmts = SCHEMA.split(";").map(s => s.trim()).filter(Boolean);
-  for (const sql of stmts) {
-    await client.execute(sql);
+async function createBackend(): Promise<Backend> {
+  if (process.env.DATABASE_URL) {
+    const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+    return makePgBackend(pool);
   }
-  await seed(client);
+
+  if (process.env.INSTANCE_CONNECTION_NAME) {
+    const { Connector, AuthTypes, IpAddressTypes } = await import("@google-cloud/cloud-sql-connector");
+    const connector = new Connector();
+    const clientOpts = await connector.getOptions({
+      instanceConnectionName: process.env.INSTANCE_CONNECTION_NAME,
+      authType: AuthTypes.IAM,
+      ipType: IpAddressTypes.PRIVATE,
+    });
+    const pool = new Pool({
+      ...clientOpts,
+      user: process.env.DB_USER,
+      database: process.env.DB_NAME ?? "postgres",
+      max: 5,
+    });
+    return makePgBackend(pool);
+  }
+
+  if (process.env.DB_USER) {
+    // Local dev tunneled to the real DB via `apps-platform app connect-db` — the
+    // tunnel handles auth, so this is a plain local Postgres connection.
+    const pool = new Pool({
+      host: "localhost",
+      port: 5432,
+      user: process.env.DB_USER,
+      database: process.env.DB_NAME ?? "postgres",
+      ssl: false,
+    });
+    return makePgBackend(pool);
+  }
+
+  if (process.env.NODE_ENV === "production") {
+    throw new Error(
+      "No database configured in production (missing DATABASE_URL / INSTANCE_CONNECTION_NAME). " +
+      "Refusing to fall back to ephemeral storage — this is what caused the 2026-07-02 data loss. " +
+      "See README.md 'Read before touching persistence or deploying'."
+    );
+  }
+
+  console.warn(
+    "[db] No database configured — using an ephemeral local SQLite file at /tmp/cheers-dev.db. " +
+    "This is fine for local dev only; it must never happen in production."
+  );
+  const client = createLibsqlClient({ url: "file:/tmp/cheers-dev.db" });
+  return makeSqliteBackend(client);
+}
+
+let _backend: Backend | null = null;
+let _initPromise: Promise<void> | null = null;
+
+async function doInit(): Promise<void> {
+  const backend = await createBackend();
+  const schema = backend.kind === "pg" ? SCHEMA_PG : SCHEMA_SQLITE;
+  const stmts = schema.split(";").map(s => s.trim()).filter(Boolean);
+  for (const sql of stmts) {
+    await backend.exec(sql);
+  }
+  await seed(backend);
+  _backend = backend;
 }
 
 export async function ensureDb(): Promise<void> {
@@ -201,31 +408,29 @@ export async function ensureDb(): Promise<void> {
   return _initPromise;
 }
 
-// Execute with one retry after a short delay (transient Turso network blips).
-async function exec(sql: string, args: InValue[]) {
-  const client = getClient();
+// Execute with one retry after a short delay (transient network blips).
+async function exec(sql: string, args: unknown[]) {
+  await ensureDb();
+  const backend = _backend!;
   try {
-    return await client.execute({ sql, args });
+    return await backend.query(sql, args);
   } catch {
     await new Promise(r => setTimeout(r, 150));
-    return await client.execute({ sql, args });
+    return await backend.query(sql, args);
   }
 }
 
-export async function dbGet<T = Record<string, unknown>>(sql: string, args: InValue[] = []): Promise<T | null> {
-  await ensureDb();
-  const result = await exec(sql, args);
-  return (result.rows[0] as unknown as T) ?? null;
+export async function dbGet<T = Record<string, unknown>>(sql: string, args: unknown[] = []): Promise<T | null> {
+  const rows = await exec(sql, args);
+  return (rows[0] as unknown as T) ?? null;
 }
 
-export async function dbAll<T = Record<string, unknown>>(sql: string, args: InValue[] = []): Promise<T[]> {
-  await ensureDb();
-  const result = await exec(sql, args);
-  return result.rows as unknown as T[];
+export async function dbAll<T = Record<string, unknown>>(sql: string, args: unknown[] = []): Promise<T[]> {
+  const rows = await exec(sql, args);
+  return rows as unknown as T[];
 }
 
-export async function dbRun(sql: string, args: InValue[] = []): Promise<{ rowsAffected: number; lastInsertRowid?: bigint | number }> {
-  await ensureDb();
-  const result = await exec(sql, args);
-  return { rowsAffected: result.rowsAffected, lastInsertRowid: result.lastInsertRowid };
+export async function dbRun(sql: string, args: unknown[] = []): Promise<{ rowsAffected: number }> {
+  const rows = await exec(sql, args);
+  return { rowsAffected: rows.length };
 }

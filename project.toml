@@ -1,4 +1,5 @@
 name = "cheers-from-applied"
+enable_postgres = true
 
 [metadata]
 owner = "yomi.ogbalaja@applied.co"
