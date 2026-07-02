@@ -1,45 +1,41 @@
 import { NextResponse } from "next/server";
-import { getDb } from "@/lib/db";
+import { dbAll } from "@/lib/db-client";
 
 export async function GET() {
   try {
-    const db = getDb();
+    const activeBoards = await dbAll(
+      "SELECT * FROM boards WHERE status = 'open' OR status = 'active'",
+      []
+    ) as any[];
 
-    const activeBoards = db
-      .prepare("SELECT * FROM boards WHERE status = 'open' OR status = 'active'")
-      .all() as any[];
-
-    const participation = db
-      .prepare(
-        `SELECT b.id as board_id, b.title, b.honoree_name, b.type, b.values_tag, b.expires_at,
+    const participation = await dbAll(
+      `SELECT b.id as board_id, b.title, b.honoree_name, b.type, b.values_tag, b.expires_at,
           COUNT(p.id) as post_count
          FROM boards b
          LEFT JOIN board_posts p ON p.board_id = b.id
          WHERE b.status = 'open' OR b.status = 'active'
          GROUP BY b.id
-         ORDER BY b.expires_at ASC`
-      )
-      .all() as any[];
+         ORDER BY b.expires_at ASC`,
+      []
+    ) as any[];
 
-    const topContributors = db
-      .prepare(
-        `SELECT author_name, COUNT(*) as count
+    const topContributors = await dbAll(
+      `SELECT author_name, COUNT(*) as count
          FROM board_posts
          WHERE is_manager_note = 0
          GROUP BY author_name
          ORDER BY count DESC
-         LIMIT 10`
-      )
-      .all() as any[];
+         LIMIT 10`,
+      []
+    ) as any[];
 
-    const valuesPosts = db
-      .prepare(
-        `SELECT bp.values_tag
+    const valuesPosts = await dbAll(
+      `SELECT bp.values_tag
          FROM board_posts bp
          JOIN boards b ON b.id = bp.board_id
-         WHERE (b.status = 'open' OR b.status = 'active') AND bp.values_tag IS NOT NULL`
-      )
-      .all() as any[];
+         WHERE (b.status = 'open' OR b.status = 'active') AND bp.values_tag IS NOT NULL`,
+      []
+    ) as any[];
 
     const VALUES_TAGS = ["Win Together", "Be Bold", "Move with Urgency"];
     const valuesBreakdown: Record<string, number> = {

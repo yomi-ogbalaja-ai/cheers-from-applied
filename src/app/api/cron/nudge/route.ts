@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getDb } from "@/lib/db";
+import { dbAll, dbGet } from "@/lib/db-client";
 
 export async function GET(request: NextRequest) {
   if (
@@ -9,20 +9,18 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const db = getDb();
   const now = new Date();
   const threeDaysFromNow = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
 
   // Get all open boards expiring in ≤ 3 days
-  const boards = db
-    .prepare(
-      `SELECT * FROM boards
+  const boards = await dbAll(
+    `SELECT * FROM boards
        WHERE status = 'open'
          AND expires_at IS NOT NULL
          AND expires_at <= ?
-         AND expires_at >= ?`
-    )
-    .all(threeDaysFromNow.toISOString(), now.toISOString()) as Array<{
+         AND expires_at >= ?`,
+    [threeDaysFromNow.toISOString(), now.toISOString()]
+  ) as Array<{
     id: string;
     title: string;
     expires_at: string;
@@ -32,12 +30,12 @@ export async function GET(request: NextRequest) {
 
   for (const board of boards) {
     // Count posts excluding manager notes
-    const { count } = db
-      .prepare(
-        `SELECT COUNT(*) as count FROM board_posts
-         WHERE board_id = ? AND is_manager_note = 0`
-      )
-      .get(board.id) as { count: number };
+    const row = await dbGet(
+      `SELECT COUNT(*) as count FROM board_posts
+         WHERE board_id = ? AND is_manager_note = 0`,
+      [board.id]
+    ) as { count: number };
+    const { count } = row;
 
     if (count < 5) {
       const expiresAt = new Date(board.expires_at);

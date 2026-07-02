@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getDb } from "@/lib/db";
+import { dbAll } from "@/lib/db-client";
 
 function daysUntilNextOccurrence(milestoneDate: string): number {
   const today = new Date();
@@ -22,13 +22,10 @@ function daysUntilNextOccurrence(milestoneDate: string): number {
 
 export async function GET() {
   try {
-    const db = getDb();
-
-    const boards = db
-      .prepare(
-        `SELECT id, honoree_name, type, title, milestone_date, expires_at FROM boards`
-      )
-      .all() as any[];
+    const boards = await dbAll(
+      `SELECT id, honoree_name, type, title, milestone_date, expires_at FROM boards`,
+      []
+    ) as any[];
 
     const upcoming: any[] = [];
 

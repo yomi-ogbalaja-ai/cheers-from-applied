@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getDb } from "@/lib/db";
+import { dbGet, dbAll } from "@/lib/db-client";
 
 function escapeCsvValue(value: unknown): string {
   const str = value == null ? "" : String(value);
@@ -11,14 +11,14 @@ function escapeCsvValue(value: unknown): string {
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const db = getDb();
 
-  const board = db.prepare("SELECT * FROM boards WHERE id = ?").get(id) as Record<string, unknown> | undefined;
+  const board = await dbGet<Record<string, unknown>>("SELECT * FROM boards WHERE id = ?", [id]);
   if (!board) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  const posts = db
-    .prepare("SELECT * FROM board_posts WHERE board_id = ? ORDER BY created_at ASC")
-    .all(id) as Record<string, unknown>[];
+  const posts = await dbAll<Record<string, unknown>>(
+    "SELECT * FROM board_posts WHERE board_id = ? ORDER BY created_at ASC",
+    [id]
+  );
 
   const header = "author_name,message,values_tag,reaction,created_at,type";
   const rows = posts.map((post) =>

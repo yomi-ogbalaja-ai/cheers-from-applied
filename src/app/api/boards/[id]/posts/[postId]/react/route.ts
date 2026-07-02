@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getDb } from "@/lib/db";
+import { dbGet, dbRun } from "@/lib/db-client";
 
 const ALLOWED_EMOJIS = new Set(["❤️", "🔥", "🙌", "😂", "👏", "🎉"]);
 
@@ -24,13 +24,10 @@ export async function POST(
     );
   }
 
-  const db = getDb();
-
-  const post = db
-    .prepare(
-      "SELECT id, reactions_json FROM board_posts WHERE id = ? AND board_id = ?"
-    )
-    .get(postId, id) as { id: string; reactions_json: string | null } | undefined;
+  const post = await dbGet<{ id: string; reactions_json: string | null }>(
+    "SELECT id, reactions_json FROM board_posts WHERE id = ? AND board_id = ?",
+    [postId, id]
+  );
 
   if (!post) {
     return NextResponse.json({ error: "Post not found" }, { status: 404 });
@@ -42,10 +39,10 @@ export async function POST(
 
   reactions[emoji] = (reactions[emoji] ?? 0) + 1;
 
-  db.prepare("UPDATE board_posts SET reactions_json = ? WHERE id = ?").run(
+  await dbRun("UPDATE board_posts SET reactions_json = ? WHERE id = ?", [
     JSON.stringify(reactions),
-    postId
-  );
+    postId,
+  ]);
 
   return NextResponse.json({ reactions });
 }

@@ -1,20 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getDb } from "@/lib/db";
+import { dbGet, dbAll } from "@/lib/db-client";
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const db = getDb();
 
-  const board = db.prepare("SELECT * FROM boards WHERE id = ?").get(id) as {
+  const board = await dbGet("SELECT * FROM boards WHERE id = ?", [id]) as {
     honoree_name: string;
     type: string;
     values_tag: string | null;
   } | undefined;
   if (!board) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  const allPosts = db
-    .prepare("SELECT * FROM board_posts WHERE board_id = ? ORDER BY created_at ASC")
-    .all(id) as { message: string | null; is_manager_note: number }[];
+  const allPosts = await dbAll(
+    "SELECT * FROM board_posts WHERE board_id = ? ORDER BY created_at ASC",
+    [id]
+  ) as { message: string | null; is_manager_note: number }[];
 
   const posts = allPosts.filter((p) => !p.is_manager_note && p.message);
 

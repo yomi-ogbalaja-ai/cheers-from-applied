@@ -503,6 +503,9 @@ export default function BoardPage() {
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [recording, setRecording] = useState(false);
   const [recSeconds, setRecSeconds] = useState(0);
+  const [gifQuery, setGifQuery] = useState("celebration");
+  const [gifResults, setGifResults] = useState<{url: string; title: string}[]>([]);
+  const [gifLoading, setGifLoading] = useState(false);
   const [authorName, setAuthorName] = useState("");
   const [authorEmail, setAuthorEmail] = useState("");
   const [valueTag, setValueTag] = useState("");
@@ -520,6 +523,17 @@ export default function BoardPage() {
   const [managerNote, setManagerNote] = useState("");
   const [savingNote, setSavingNote] = useState(false);
 
+  async function searchGifs(q: string) {
+    setGifLoading(true);
+    try {
+      const res = await fetch(`/api/gif-search?q=${encodeURIComponent(q)}`);
+      const data = await res.json();
+      setGifResults(data.gifs ?? []);
+    } finally {
+      setGifLoading(false);
+    }
+  }
+
   const fetchBoard = useCallback(async () => {
     const res = await fetch(`/api/boards/${id}`);
     if (!res.ok) { setLoading(false); return; }
@@ -534,6 +548,13 @@ export default function BoardPage() {
   useEffect(() => {
     fetchBoard();
   }, [fetchBoard]);
+
+  useEffect(() => {
+    if (tab === "gif" && gifResults.length === 0 && !gifLoading) {
+      searchGifs(gifQuery);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab]);
 
   useEffect(() => {
     if (!loading && !confettiFired.current) {
@@ -669,7 +690,6 @@ export default function BoardPage() {
     </div>
   );
 
-  const gifSet = GIF_SETS[board.type] ?? GIF_SETS.birthday;
   const autoMsgs = AUTO_MESSAGES[board.type] ?? AUTO_MESSAGES.birthday;
   const shareUrl = typeof window !== "undefined" ? `${window.location.origin}/c/${board.share_token}` : "";
   const managerNotePost = posts.find(p => p.is_manager_note);
@@ -855,16 +875,38 @@ export default function BoardPage() {
 
                 {/* GIF TAB */}
                 {tab === "gif" && (
-                  <div className="grid grid-cols-3 gap-1.5 max-h-60 overflow-y-auto">
-                    {gifSet.map((url, i) => (
-                      <button key={i} onClick={() => { setSelectedGif({ url, title: `GIF ${i+1}` }); setTab("text"); }}
-                        className="aspect-square rounded-lg overflow-hidden transition-all"
-                        style={{ outline: "none" }}
-                        onMouseEnter={e => (e.currentTarget.style.boxShadow = "0 0 0 2px var(--accent)")}
-                        onMouseLeave={e => (e.currentTarget.style.boxShadow = "")}>
-                        <img src={url} alt="gif" className="w-full h-full object-cover" />
+                  <div className="space-y-2">
+                    <form onSubmit={e => { e.preventDefault(); searchGifs(gifQuery); }} className="flex gap-1.5">
+                      <input
+                        value={gifQuery}
+                        onChange={e => setGifQuery(e.target.value)}
+                        placeholder="Search GIFs…"
+                        className="flex-1 text-sm rounded-xl px-3 py-2 focus:outline-none"
+                        style={{ border: "1px solid var(--border)" }} />
+                      <button type="submit"
+                        className="px-3 py-2 rounded-xl text-white text-sm font-medium transition-opacity hover:opacity-90"
+                        style={{ background: "var(--accent)" }}>
+                        {gifLoading ? "…" : "Go"}
                       </button>
-                    ))}
+                    </form>
+                    {gifLoading ? (
+                      <div className="flex items-center justify-center h-32 text-2xl animate-bounce">🎞</div>
+                    ) : (
+                      <div className="grid grid-cols-3 gap-1.5 max-h-56 overflow-y-auto">
+                        {gifResults.map((gif, i) => (
+                          <button key={i} onClick={() => { setSelectedGif(gif); setTab("text"); }}
+                            className="aspect-square rounded-lg overflow-hidden transition-all"
+                            style={{ outline: "none" }}
+                            onMouseEnter={e => (e.currentTarget.style.boxShadow = "0 0 0 2px var(--accent)")}
+                            onMouseLeave={e => (e.currentTarget.style.boxShadow = "")}>
+                            <img src={gif.url} alt={gif.title} className="w-full h-full object-cover" />
+                          </button>
+                        ))}
+                        {gifResults.length === 0 && !gifLoading && (
+                          <p className="col-span-3 text-center text-xs py-8" style={{ color: "var(--muted)" }}>No GIFs found. Try a different search.</p>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
 

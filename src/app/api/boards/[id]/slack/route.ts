@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getDb } from "@/lib/db";
+import { dbGet } from "@/lib/db-client";
 
 export async function POST(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -12,11 +12,10 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
     );
   }
 
-  const db = getDb();
-  const board = db.prepare("SELECT * FROM boards WHERE id = ?").get(id) as Record<string, unknown> | undefined;
+  const board = await dbGet("SELECT * FROM boards WHERE id = ?", [id]) as Record<string, unknown> | undefined;
   if (!board) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  const row = db.prepare("SELECT COUNT(*) as count FROM board_posts WHERE board_id = ?").get(id) as { count: number };
+  const row = await dbGet("SELECT COUNT(*) as count FROM board_posts WHERE board_id = ?", [id]) as { count: number };
   const postCount = row.count;
 
   const url = `https://cheers-from-applied.vercel.app/board/${id}`;

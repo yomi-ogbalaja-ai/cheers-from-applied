@@ -12,6 +12,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@libsql/client": "^0.17.4",
     "@tailwindcss/postcss": "^4.3.1",
     "better-sqlite3": "^12.11.1",
     "canvas-confetti": "^1.9.3",

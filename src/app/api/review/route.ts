@@ -1,20 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getDb } from "@/lib/db";
+import { dbAll } from "@/lib/db-client";
 
 const MONTH_LABELS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 export async function GET(req: NextRequest) {
-  const db = getDb();
   const { searchParams } = new URL(req.url);
   const year = parseInt(searchParams.get("year") ?? "2026", 10);
 
-  const boards = db.prepare(`
+  const boards = await dbAll(`
     SELECT b.*,
       (SELECT COUNT(*) FROM board_posts WHERE board_id = b.id) as post_count
     FROM boards b
     WHERE strftime('%Y', COALESCE(b.milestone_date, b.created_at)) = ?
     ORDER BY COALESCE(b.milestone_date, b.created_at) ASC
-  `).all(String(year)) as Array<{
+  `, [String(year)]) as Array<{
     id: string;
     title: string;
     type: string;

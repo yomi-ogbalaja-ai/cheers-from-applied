@@ -1,9 +1,8 @@
 import { NextResponse } from "next/server";
-import { getDb } from "@/lib/db";
+import { dbAll } from "@/lib/db-client";
 
 export async function GET() {
-  const db = getDb();
-  const badges = db.prepare("SELECT * FROM badges ORDER BY awarded_at DESC").all() as Array<{
+  const badges = await dbAll("SELECT * FROM badges ORDER BY awarded_at DESC") as Array<{
     id: number; person_email: string; person_name: string; badge_type: string;
     board_id: string | null; reason: string | null; awarded_at: string;
   }>;

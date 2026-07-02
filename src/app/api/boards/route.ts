@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getDb } from "@/lib/db";
+import { dbGet, dbAll, dbRun } from "@/lib/db-client";
 import { randomUUID } from "crypto";
 
 export async function GET() {
-  const db = getDb();
-  const boards = db.prepare(`
+  const boards = await dbAll(`
     SELECT b.*,
       (SELECT COUNT(*) FROM board_posts WHERE board_id = b.id) as post_count,
       (SELECT COUNT(*) FROM board_gifts WHERE board_id = b.id) as gift_count,
@@ -12,22 +11,21 @@ export async function GET() {
     FROM boards b
     WHERE b.status = 'active'
     ORDER BY b.created_at DESC
-  `).all();
+  `);
   return NextResponse.json(boards);
 }
 
 export async function POST(req: NextRequest) {
-  const db = getDb();
   const body = await req.json();
   const id = randomUUID();
   const share_token = randomUUID();
 
-  db.prepare(`INSERT INTO boards
+  await dbRun(`INSERT INTO boards
     (id, honoree_name, honoree_email, honoree_avatar_color, type, title, description,
      milestone_date, values_tag, is_private, public_share_enabled, share_token,
      requires_gift_approval, gift_manager_email, status, created_by, created_by_name, expires_at)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?)
-  `).run(
+  `, [
     id,
     body.honoree_name,
     body.honoree_email ?? null,
@@ -45,8 +43,8 @@ export async function POST(req: NextRequest) {
     body.created_by ?? null,
     body.created_by_name ?? null,
     body.expires_at ?? null,
-  );
+  ]);
 
-  const board = db.prepare("SELECT * FROM boards WHERE id = ?").get(id);
+  const board = await dbGet("SELECT * FROM boards WHERE id = ?", [id]);
   return NextResponse.json(board, { status: 201 });
 }

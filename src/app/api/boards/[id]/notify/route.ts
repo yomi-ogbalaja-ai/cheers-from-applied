@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getDb } from "@/lib/db";
+import { dbGet } from "@/lib/db-client";
 
 export async function POST(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const resendApiKey = process.env.RESEND_API_KEY;
 
-  const db = getDb();
-  const board = db.prepare("SELECT * FROM boards WHERE id = ?").get(id) as Record<string, unknown> | undefined;
+  const board = await dbGet("SELECT * FROM boards WHERE id = ?", [id]) as Record<string, unknown> | undefined;
   if (!board) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const shareUrl = `https://cheers-from-applied.vercel.app/c/${board.share_token}`;
