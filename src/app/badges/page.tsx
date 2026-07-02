@@ -47,15 +47,28 @@ function fmtDate(iso: string) {
 
 export default function BadgesPage() {
   const [groups, setGroups] = useState<PersonGroup[] | null>(null);
+  const [error, setError] = useState(false);
 
-  useEffect(() => {
+  function load() {
+    setError(false);
+    setGroups(null);
     fetch("/api/badges")
-      .then((r) => r.json())
+      .then((r) => {
+        if (!r.ok) throw new Error(`Request failed (${r.status})`);
+        return r.json();
+      })
       .then((data: PersonGroup[]) => {
         const sorted = [...data].sort((a, b) => b.badges.length - a.badges.length);
         setGroups(sorted);
       })
-      .catch(() => setGroups([]));
+      .catch(() => {
+        setError(true);
+        setGroups([]);
+      });
+  }
+
+  useEffect(() => {
+    load();
   }, []);
 
   const totalBadges = groups ? groups.reduce((s, g) => s + g.badges.length, 0) : 0;
@@ -107,8 +120,21 @@ export default function BadgesPage() {
           </div>
         )}
 
+        {/* Error */}
+        {error && (
+          <div className="text-center py-24">
+            <p className="text-sm font-medium mb-1" style={{ color: "var(--text)" }}>Couldn't load badges</p>
+            <p className="text-xs mb-5" style={{ color: "var(--muted)" }}>Check your connection and try again.</p>
+            <button onClick={load}
+              className="inline-block text-white px-6 py-2 rounded-lg text-sm font-medium cursor-pointer"
+              style={{ background: "var(--accent)" }}>
+              Retry
+            </button>
+          </div>
+        )}
+
         {/* Empty */}
-        {groups !== null && groups.length === 0 && (
+        {!error && groups !== null && groups.length === 0 && (
           <div className="text-center py-24">
             <div className="text-5xl mb-4">🎖️</div>
             <p className="text-lg mb-4" style={{ color: "var(--muted)" }}>No badges yet. Start celebrating!</p>

@@ -4,7 +4,7 @@
 import { createClient, type InValue } from "@libsql/client";
 
 let _client: ReturnType<typeof createClient> | null = null;
-let _initialized = false;
+let _initPromise: Promise<void> | null = null;
 
 function getClient() {
   if (_client) return _client;
@@ -34,7 +34,7 @@ CREATE TABLE IF NOT EXISTS boards (
   status TEXT DEFAULT 'active',
   created_by TEXT,
   created_by_name TEXT,
-  created_at TEXT,
+  created_at TEXT DEFAULT (datetime('now')),
   expires_at TEXT
 );
 CREATE TABLE IF NOT EXISTS board_posts (
@@ -52,7 +52,7 @@ CREATE TABLE IF NOT EXISTS board_posts (
   reactions_json TEXT DEFAULT '{}',
   is_manager_note INTEGER DEFAULT 0,
   values_tag TEXT,
-  created_at TEXT
+  created_at TEXT DEFAULT (datetime('now'))
 );
 CREATE TABLE IF NOT EXISTS board_gifts (
   id TEXT PRIMARY KEY,
@@ -65,7 +65,7 @@ CREATE TABLE IF NOT EXISTS board_gifts (
   status TEXT DEFAULT 'pending',
   approved_by TEXT,
   workday_balance REAL,
-  created_at TEXT
+  created_at TEXT DEFAULT (datetime('now'))
 );
 CREATE TABLE IF NOT EXISTS badges (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -74,8 +74,13 @@ CREATE TABLE IF NOT EXISTS badges (
   badge_type TEXT NOT NULL,
   board_id TEXT,
   reason TEXT,
-  awarded_at TEXT
+  awarded_at TEXT DEFAULT (datetime('now'))
 );
+CREATE INDEX IF NOT EXISTS idx_posts_board ON board_posts(board_id);
+CREATE INDEX IF NOT EXISTS idx_boards_token ON boards(share_token);
+CREATE INDEX IF NOT EXISTS idx_boards_status ON boards(status);
+CREATE INDEX IF NOT EXISTS idx_badges_board ON badges(board_id);
+CREATE INDEX IF NOT EXISTS idx_badges_email ON badges(person_email);
 `;
 
 const EXPIRES_AT = "2026-08-25";
@@ -179,8 +184,7 @@ async function seed(client: ReturnType<typeof createClient>) {
   }
 }
 
-export async function ensureDb(): Promise<void> {
-  if (_initialized) return;
+async function doInit(): Promise<void> {
   const client = getClient();
   // Run schema one statement at a time (libsql doesn't support multi-statement in one execute)
   const stmts = SCHEMA.split(";").map(s => s.trim()).filter(Boolean);
@@ -188,23 +192,40 @@ export async function ensureDb(): Promise<void> {
     await client.execute(sql);
   }
   await seed(client);
-  _initialized = true;
+}
+
+export async function ensureDb(): Promise<void> {
+  if (!_initPromise) {
+    _initPromise = doInit().catch(err => { _initPromise = null; throw err; });
+  }
+  return _initPromise;
+}
+
+// Execute with one retry after a short delay (transient Turso network blips).
+async function exec(sql: string, args: InValue[]) {
+  const client = getClient();
+  try {
+    return await client.execute({ sql, args });
+  } catch {
+    await new Promise(r => setTimeout(r, 150));
+    return await client.execute({ sql, args });
+  }
 }
 
 export async function dbGet<T = Record<string, unknown>>(sql: string, args: InValue[] = []): Promise<T | null> {
   await ensureDb();
-  const result = await getClient().execute({ sql, args });
+  const result = await exec(sql, args);
   return (result.rows[0] as unknown as T) ?? null;
 }
 
 export async function dbAll<T = Record<string, unknown>>(sql: string, args: InValue[] = []): Promise<T[]> {
   await ensureDb();
-  const result = await getClient().execute({ sql, args });
+  const result = await exec(sql, args);
   return result.rows as unknown as T[];
 }
 
 export async function dbRun(sql: string, args: InValue[] = []): Promise<{ rowsAffected: number; lastInsertRowid?: bigint | number }> {
   await ensureDb();
-  const result = await getClient().execute({ sql, args });
+  const result = await exec(sql, args);
   return { rowsAffected: result.rowsAffected, lastInsertRowid: result.lastInsertRowid };
 }

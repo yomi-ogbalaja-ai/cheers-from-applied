@@ -55,18 +55,30 @@ export default function HomePage() {
   const [badgeGroups, setBadgeGroups] = useState<BadgeGroup[]>([]);
   const [milestones, setMilestones] = useState<MilestoneItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
-  useEffect(() => {
-    Promise.all([
-      fetch("/api/boards").then(r => r.json()).catch(() => []),
-      fetch("/api/badges").then(r => r.json()).catch(() => []),
-      fetch("/api/calendar").then(r => r.json()).catch(() => ({ upcoming: [] })),
-    ]).then(([b, bg, cal]) => {
+  async function load() {
+    setError(false);
+    setLoading(true);
+    try {
+      const [b, bg, cal] = await Promise.all([
+        fetch("/api/boards").then(r => { if (!r.ok) throw new Error(); return r.json(); }),
+        fetch("/api/badges").then(r => { if (!r.ok) throw new Error(); return r.json(); }),
+        fetch("/api/calendar").then(r => { if (!r.ok) throw new Error(); return r.json(); }),
+      ]);
       setBoards(Array.isArray(b) ? b : []);
       setBadgeGroups(Array.isArray(bg) ? bg : []);
       setMilestones(Array.isArray(cal?.upcoming) ? cal.upcoming : []);
+    } catch {
+      setError(true);
+    } finally {
       setLoading(false);
-    });
+    }
+  }
+
+  useEffect(() => {
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const recentBadges = badgeGroups
@@ -147,7 +159,17 @@ export default function HomePage() {
         </div>
 
         {/* Board grid */}
-        {loading ? (
+        {error ? (
+          <div className="py-20 text-center">
+            <p className="text-sm font-medium mb-1" style={{ color: "var(--text)" }}>Couldn't load boards</p>
+            <p className="text-xs mb-5" style={{ color: "var(--muted)" }}>Something went wrong. Please try again.</p>
+            <button onClick={load}
+              className="inline-block px-4 py-2 rounded-md text-white text-sm font-medium cursor-pointer"
+              style={{ background: "var(--accent)" }}>
+              Retry
+            </button>
+          </div>
+        ) : loading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
             {[1, 2, 3].map(i => (
               <div key={i} className="rounded-lg overflow-hidden animate-pulse"

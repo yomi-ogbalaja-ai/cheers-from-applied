@@ -503,6 +503,7 @@ export default function BoardPage() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [badges, setBadges] = useState<Badge[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [showAllPosts, setShowAllPosts] = useState(false);
   const confettiFired = useRef(false);
 
@@ -559,13 +560,20 @@ export default function BoardPage() {
   }
 
   const fetchBoard = useCallback(async () => {
-    const res = await fetch(`/api/boards/${id}`);
-    if (!res.ok) { setLoading(false); return; }
-    const data = await res.json();
-    setBoard(data.board);
-    setPosts(data.posts);
-    setBadges(data.badges);
-    setLoading(false);
+    setLoadError(false);
+    try {
+      const res = await fetch(`/api/boards/${id}`);
+      if (res.status === 404) { setLoading(false); return; }
+      if (!res.ok) throw new Error(`Request failed (${res.status})`);
+      const data = await res.json();
+      setBoard(data.board);
+      setPosts(data.posts);
+      setBadges(data.badges);
+    } catch {
+      setLoadError(true);
+    } finally {
+      setLoading(false);
+    }
   }, [id]);
 
   useEffect(() => {
@@ -655,21 +663,33 @@ export default function BoardPage() {
     if (audio_url) body.audio_url = audio_url;
     if (valueTag) body.values_tag = valueTag;
 
-    const res = await fetch(`/api/boards/${id}/posts`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-    if (res.ok) {
-      const confettiColors = VALUE_CONFETTI[valueTag] ?? VALUE_CONFETTI["Win Together"];
-      confetti({ particleCount: 50, spread: 60, origin: { y: 0.6 }, colors: confettiColors });
-      setMessage(""); setReaction(""); setSelectedGif(null); setPhotoData(null);
-      setAudioBlob(null); setAudioUrl(null); setTab("text"); setValueTag(""); setAnonymous(false);
-      setShowComposerSheet(false);
-      showToast("Cheer posted 🎉");
-      await fetchBoard();
+    try {
+      const res = await fetch(`/api/boards/${id}/posts`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (res.ok) {
+        const confettiColors = VALUE_CONFETTI[valueTag] ?? VALUE_CONFETTI["Win Together"];
+        confetti({ particleCount: 50, spread: 60, origin: { y: 0.6 }, colors: confettiColors });
+        setMessage(""); setReaction(""); setSelectedGif(null); setPhotoData(null);
+        setAudioBlob(null); setAudioUrl(null); setTab("text"); setValueTag(""); setAnonymous(false);
+        setShowComposerSheet(false);
+        showToast("Cheer posted 🎉");
+        await fetchBoard();
+      } else {
+        let msg = "Couldn't post your cheer. Please try again.";
+        try {
+          const data = await res.json();
+          if (data?.error) msg = data.error;
+        } catch { /* keep default */ }
+        showToast(msg);
+      }
+    } catch {
+      showToast("Network error. Check your connection and try again.");
+    } finally {
+      setPosting(false);
     }
-    setPosting(false);
   }
 
   // ── Manager note submit ───────────────────────────────────────────────────
@@ -715,6 +735,19 @@ export default function BoardPage() {
       <div className="text-center">
         <div className="text-4xl mb-3 animate-bounce">🎉</div>
         <p style={{ color: "var(--muted)" }}>Loading the board…</p>
+      </div>
+    </div>
+  );
+  if (loadError && !board) return (
+    <div className="min-h-screen flex items-center justify-center" style={{ background: "var(--bg)" }}>
+      <div className="text-center">
+        <p className="text-sm font-medium mb-1" style={{ color: "var(--text)" }}>Couldn't load the board</p>
+        <p className="text-xs mb-5" style={{ color: "var(--muted)" }}>Check your connection and try again.</p>
+        <button onClick={() => { setLoading(true); fetchBoard(); }}
+          className="px-4 py-2 rounded-md text-white text-sm font-medium cursor-pointer"
+          style={{ background: "var(--accent)" }}>
+          Retry
+        </button>
       </div>
     </div>
   );

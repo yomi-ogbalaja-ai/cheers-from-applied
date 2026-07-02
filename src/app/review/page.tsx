@@ -74,15 +74,28 @@ const cardStyle: React.CSSProperties = {
 export default function ReviewPage() {
   const [data, setData] = useState<ReviewData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
-  useEffect(() => {
+  function load() {
+    setError(false);
+    setLoading(true);
     fetch("/api/review?year=2026")
-      .then((r) => r.json())
+      .then((r) => {
+        if (!r.ok) throw new Error(`Request failed (${r.status})`);
+        return r.json();
+      })
       .then((d) => {
         setData(d);
         setLoading(false);
       })
-      .catch(() => setLoading(false));
+      .catch(() => {
+        setError(true);
+        setLoading(false);
+      });
+  }
+
+  useEffect(() => {
+    load();
   }, []);
 
   if (loading) {
@@ -100,10 +113,30 @@ export default function ReviewPage() {
     );
   }
 
-  if (!data || !data.by_month) {
+  if (error || !data || !data.by_month) {
     return (
-      <div style={{ padding: "2rem", color: "var(--muted)" }}>
-        Could not load review data.
+      <div style={{ maxWidth: 860, margin: "0 auto", padding: "80px 24px", textAlign: "center" }}>
+        <div style={{ fontSize: 15, fontWeight: 700, color: "var(--text)", marginBottom: 6 }}>
+          Couldn't load the year in review
+        </div>
+        <div style={{ fontSize: 13, color: "var(--muted)", marginBottom: 20 }}>
+          Check your connection and try again.
+        </div>
+        <button
+          onClick={load}
+          style={{
+            background: "var(--accent)",
+            color: "#fff",
+            border: "none",
+            borderRadius: 8,
+            padding: "10px 20px",
+            fontWeight: 700,
+            fontSize: 14,
+            cursor: "pointer",
+          }}
+        >
+          Retry
+        </button>
       </div>
     );
   }

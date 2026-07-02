@@ -113,15 +113,28 @@ export default function DashboardPage() {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [hoveredRow, setHoveredRow] = useState<string | null>(null);
+  const [error, setError] = useState(false);
 
-  useEffect(() => {
+  function load() {
+    setError(false);
+    setLoading(true);
     fetch("/api/dashboard")
-      .then((r) => r.json())
+      .then((r) => {
+        if (!r.ok) throw new Error(`Request failed (${r.status})`);
+        return r.json();
+      })
       .then((d) => {
         setData(d);
         setLoading(false);
       })
-      .catch(() => setLoading(false));
+      .catch(() => {
+        setError(true);
+        setLoading(false);
+      });
+  }
+
+  useEffect(() => {
+    load();
   }, []);
 
   const uniqueContributors = data
@@ -179,7 +192,33 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {!loading && data && (
+      {!loading && error && (
+        <div style={{ textAlign: "center", padding: "72px 32px" }}>
+          <div style={{ fontSize: 15, fontWeight: 700, color: "var(--text)", marginBottom: 6 }}>
+            Couldn't load the dashboard
+          </div>
+          <div style={{ fontSize: 13, color: "var(--muted)", marginBottom: 20 }}>
+            Check your connection and try again.
+          </div>
+          <button
+            onClick={load}
+            style={{
+              background: "var(--accent)",
+              color: "#fff",
+              border: "none",
+              borderRadius: 8,
+              padding: "10px 20px",
+              fontWeight: 700,
+              fontSize: 14,
+              cursor: "pointer",
+            }}
+          >
+            Retry
+          </button>
+        </div>
+      )}
+
+      {!loading && !error && data && (
         <>
           {/* Stats Row */}
           <div style={{ display: "flex", gap: 16, marginBottom: 44, flexWrap: "wrap" }}>
