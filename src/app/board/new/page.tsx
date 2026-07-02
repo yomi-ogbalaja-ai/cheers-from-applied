@@ -10,6 +10,8 @@ type MilestoneType = {
   label: string;
   tag: string;   // stored value name
   cheer: string; // affirmation shown on the card
+  desc: string;  // one-line descriptor shown under the label
+  tint: string;  // subtle hover tint
 };
 
 const TYPES: MilestoneType[] = [
@@ -17,41 +19,57 @@ const TYPES: MilestoneType[] = [
     key: "birthday", emoji: "🎂", label: "Birthday",
     tag: "Win Together",
     cheer: "who's here matters · Win Together",
+    desc: "another lap around the sun",
+    tint: "#FFF4EC",
   },
   {
     key: "promotion", emoji: "🚀", label: "Promotion",
     tag: "Be Bold",
     cheer: "saw the opening, took it · Be Bold",
+    desc: "leveling up",
+    tint: "#EDF2FC",
   },
   {
     key: "new_hire", emoji: "👋", label: "New Hire",
     tag: "Win Together",
     cheer: "the team is only as strong as who's in it",
+    desc: "fresh face, warm welcome",
+    tint: "#ECFBF4",
   },
   {
     key: "work_anniversary", emoji: "🥂", label: "Work Anniversary",
     tag: "Move with Urgency",
     cheer: "showing up, year after year · Move with Urgency",
+    desc: "years of showing up",
+    tint: "#FFFAEB",
   },
   {
     key: "wedding", emoji: "💍", label: "Wedding",
     tag: "Win Together",
     cheer: "the biggest commitment, made together",
+    desc: "two become a team",
+    tint: "#FDF0F7",
   },
   {
     key: "new_baby", emoji: "👶", label: "New Baby",
     tag: "Win Together",
     cheer: "family is the original team",
+    desc: "the newest teammate",
+    tint: "#F3F0FD",
   },
   {
     key: "get_well", emoji: "💐", label: "Get Well",
     tag: "Win Together",
     cheer: "real teams don't wait · they show up",
+    desc: "sending strength",
+    tint: "#EDFAFB",
   },
   {
     key: "personal_achievement", emoji: "🌟", label: "Personal Achievement",
     tag: "Be Bold",
     cheer: "hard goal, clear-eyed pursuit, done",
+    desc: "a goal, achieved",
+    tint: "#FFF8E8",
   },
 ];
 
@@ -226,23 +244,30 @@ export default function NewBoardPage() {
     return (
       <div className="min-h-screen px-4 py-16" style={{ background: "var(--bg)" }}>
         <div className="max-w-2xl mx-auto">
-          <h1 className="text-3xl font-extrabold text-gray-900 mb-2 text-center">Create a Cheer Board</h1>
-          <p className="text-gray-500 text-center mb-10">Pick the milestone you&apos;re celebrating</p>
+          <h1 className="text-3xl font-extrabold mb-2 text-center" style={{ color: "var(--text)" }}>Create a Cheer Board</h1>
+          <p className="text-center mb-10" style={{ color: "var(--muted)" }}>Pick the milestone you&apos;re celebrating</p>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             {TYPES.map((t) => (
               <button
                 key={t.key}
                 onClick={() => handleTypeSelect(t)}
-                className="group relative flex flex-col items-center gap-2 p-5 rounded-2xl border-2 border-transparent bg-white
+                className="group relative flex flex-col items-center gap-2 p-5 rounded-2xl border-2 border-transparent
                   shadow-sm hover:shadow-md hover:scale-105 active:scale-95
                   transition-all duration-150 focus:outline-none"
-                style={{ outline: "none" }}
-                onMouseEnter={e => (e.currentTarget.style.borderColor = "var(--accent)")}
-                onMouseLeave={e => (e.currentTarget.style.borderColor = "transparent")}
+                style={{ outline: "none", background: "var(--card)" }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.borderColor = "var(--accent)";
+                  e.currentTarget.style.background = t.tint;
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.borderColor = "transparent";
+                  e.currentTarget.style.background = "var(--card)";
+                }}
               >
                 <span className="absolute inset-x-0 top-0 h-1 rounded-t-2xl opacity-0 group-hover:opacity-100 transition-opacity" style={{ background: "var(--accent)" }} />
                 <span className="text-4xl">{t.emoji}</span>
-                <span className="text-sm font-semibold text-gray-700 text-center leading-tight">{t.label}</span>
+                <span className="text-sm font-semibold text-center leading-tight" style={{ color: "var(--text)" }}>{t.label}</span>
+                <span className="text-[11px] text-center leading-tight" style={{ color: "var(--muted)" }}>{t.desc}</span>
               </button>
             ))}
           </div>
@@ -269,20 +294,45 @@ export default function NewBoardPage() {
                 {s < 2 && <div className={`h-0.5 w-10 rounded`} style={{ background: step > s ? "var(--accent)" : "var(--border)" }} />}
               </div>
             ))}
-            <span className="ml-2 text-sm text-gray-400">Step 2 of 2</span>
+            <span className="ml-2 text-sm" style={{ color: "var(--muted)" }}>Step 2 of 2</span>
           </div>
 
-          <h1 className="text-2xl font-extrabold text-gray-900 mb-1">
+          <h1 className="text-2xl font-extrabold mb-1" style={{ color: "var(--text)" }}>
             Tell us about {selectedType.emoji} {selectedType.label}
           </h1>
-          <p className="text-gray-500 text-sm mb-8">Fill in the details to create the board.</p>
+          <p className="text-sm mb-8" style={{ color: "var(--muted)" }}>Fill in the details to create the board.</p>
+
+          {/* Live preview */}
+          <div className="rounded-2xl overflow-hidden border mb-6 shadow-sm"
+            style={{ borderColor: "var(--border)", background: "var(--card)" }}>
+            <div className="h-14 flex items-center justify-center text-2xl"
+              style={{ background: `linear-gradient(135deg, ${form.coverColor}cc 0%, ${form.coverColor} 100%)` }}>
+              {selectedType.emoji}
+            </div>
+            <div className="flex items-center gap-3 px-4 py-3">
+              <div className="w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-bold shrink-0"
+                style={{ background: form.coverColor }}>
+                {form.honoreeName
+                  ? form.honoreeName.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2)
+                  : "?"}
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-bold truncate" style={{ color: "var(--text)" }}>
+                  {form.title || "Board title will appear here"}
+                </p>
+                <p className="text-xs" style={{ color: "var(--muted)" }}>
+                  Preview · updates as you type
+                </p>
+              </div>
+            </div>
+          </div>
 
           <form onSubmit={handleSubmit} className="space-y-5">
             {/* Honoree */}
-            <div className="bg-white rounded-2xl border p-5 space-y-4" style={{ borderColor: "var(--border)" }}>
-              <h2 className="font-semibold text-gray-800 text-sm uppercase tracking-wide">Honoree</h2>
+            <div className="rounded-2xl border p-5 space-y-4" style={{ borderColor: "var(--border)", background: "var(--card)" }}>
+              <h2 className="font-semibold text-sm uppercase tracking-wide" style={{ color: "var(--text)" }}>Honoree</h2>
               <div>
-                <label className="block text-sm text-gray-600 mb-1">Full name <span className="text-red-500">*</span></label>
+                <label className="block text-sm mb-1" style={{ color: "var(--muted)" }}>Full name <span className="text-red-500">*</span></label>
                 <input
                   required
                   type="text"
@@ -295,7 +345,7 @@ export default function NewBoardPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm text-gray-600 mb-1">Work email <span className="text-red-500">*</span></label>
+                <label className="block text-sm mb-1" style={{ color: "var(--muted)" }}>Work email <span className="text-red-500">*</span></label>
                 <input
                   required
                   type="email"
@@ -309,12 +359,12 @@ export default function NewBoardPage() {
             </div>
 
             {/* Board content */}
-            <div className="bg-white rounded-2xl border p-5 space-y-4" style={{ borderColor: "var(--border)" }}>
-              <h2 className="font-semibold text-gray-800 text-sm uppercase tracking-wide">Board Content</h2>
+            <div className="rounded-2xl border p-5 space-y-4" style={{ borderColor: "var(--border)", background: "var(--card)" }}>
+              <h2 className="font-semibold text-sm uppercase tracking-wide" style={{ color: "var(--text)" }}>Board Content</h2>
 
               {/* Applied value */}
               <div>
-                <label className="block text-sm text-gray-600 mb-1">Applied value this celebrates</label>
+                <label className="block text-sm mb-1" style={{ color: "var(--muted)" }}>Applied value this celebrates</label>
                 <div className="grid grid-cols-3 gap-2">
                   {APPLIED_VALUES.map(v => (
                     <button
@@ -324,7 +374,7 @@ export default function NewBoardPage() {
                       className="flex flex-col items-start p-3 rounded-xl border-2 text-left transition-all"
                       style={form.valuesTag === v.value
                         ? { borderColor: "var(--accent)", background: "var(--accent-light)" }
-                        : { borderColor: "var(--border)", background: "#fff" }}>
+                        : { borderColor: "var(--border)", background: "var(--card)" }}>
                       <span className="text-xs font-semibold leading-tight" style={{ color: form.valuesTag === v.value ? "var(--accent)" : "var(--text)" }}>
                         {v.value}
                       </span>
@@ -340,7 +390,7 @@ export default function NewBoardPage() {
               </div>
 
               <div>
-                <label className="block text-sm text-gray-600 mb-1">Board title</label>
+                <label className="block text-sm mb-1" style={{ color: "var(--muted)" }}>Board title</label>
                 <input
                   type="text"
                   value={form.title}
@@ -351,7 +401,7 @@ export default function NewBoardPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm text-gray-600 mb-1">Description <span className="text-gray-400">(optional)</span></label>
+                <label className="block text-sm mb-1" style={{ color: "var(--muted)" }}>Description <span className="text-gray-400">(optional)</span></label>
                 <textarea
                   rows={3}
                   value={form.description}
@@ -362,7 +412,7 @@ export default function NewBoardPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm text-gray-600 mb-1">Milestone date <span className="text-gray-400">(optional)</span></label>
+                <label className="block text-sm mb-1" style={{ color: "var(--muted)" }}>Milestone date <span className="text-gray-400">(optional)</span></label>
                 <input
                   type="date"
                   value={form.milestoneDate}
@@ -374,11 +424,11 @@ export default function NewBoardPage() {
             </div>
 
             {/* Creator */}
-            <div className="bg-white rounded-2xl border p-5 space-y-4" style={{ borderColor: "var(--border)" }}>
-              <h2 className="font-semibold text-gray-800 text-sm uppercase tracking-wide">Who&apos;s creating this?</h2>
+            <div className="rounded-2xl border p-5 space-y-4" style={{ borderColor: "var(--border)", background: "var(--card)" }}>
+              <h2 className="font-semibold text-sm uppercase tracking-wide" style={{ color: "var(--text)" }}>Who&apos;s creating this?</h2>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-sm text-gray-600 mb-1">Your name</label>
+                  <label className="block text-sm mb-1" style={{ color: "var(--muted)" }}>Your name</label>
                   <input
                     type="text"
                     value={form.creatorName}
@@ -389,7 +439,7 @@ export default function NewBoardPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm text-gray-600 mb-1">Your email</label>
+                  <label className="block text-sm mb-1" style={{ color: "var(--muted)" }}>Your email</label>
                   <input
                     type="email"
                     value={form.creatorEmail}
@@ -403,12 +453,12 @@ export default function NewBoardPage() {
             </div>
 
             {/* Settings */}
-            <div className="bg-white rounded-2xl border p-5 space-y-4" style={{ borderColor: "var(--border)" }}>
-              <h2 className="font-semibold text-gray-800 text-sm uppercase tracking-wide">Settings</h2>
+            <div className="rounded-2xl border p-5 space-y-4" style={{ borderColor: "var(--border)", background: "var(--card)" }}>
+              <h2 className="font-semibold text-sm uppercase tracking-wide" style={{ color: "var(--text)" }}>Settings</h2>
 
               {/* Cover color */}
               <div>
-                <label className="block text-sm text-gray-600 mb-2">Board color</label>
+                <label className="block text-sm mb-2" style={{ color: "var(--muted)" }}>Board color</label>
                 <div className="flex gap-2 flex-wrap">
                   {COVER_COLORS.map(c => (
                     <button key={c} type="button" onClick={() => setField("coverColor", c)}
@@ -420,7 +470,7 @@ export default function NewBoardPage() {
 
               {/* Privacy */}
               <div>
-                <label className="block text-sm text-gray-600 mb-2">Privacy</label>
+                <label className="block text-sm mb-2" style={{ color: "var(--muted)" }}>Privacy</label>
                 {selectedType && PRIVATE_ONLY_TYPES.has(selectedType.key) ? (
                   <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl border-2 text-sm font-medium"
                     style={{ borderColor: "var(--border)", color: "var(--muted)" }}>
@@ -447,7 +497,7 @@ export default function NewBoardPage() {
 
               {/* Close days */}
               <div>
-                <label className="block text-sm text-gray-600 mb-2">Board closes in</label>
+                <label className="block text-sm mb-2" style={{ color: "var(--muted)" }}>Board closes in</label>
                 <div className="flex gap-2">
                   {[7, 14, 30, 60].map((d) => (
                     <button
@@ -504,11 +554,11 @@ export default function NewBoardPage() {
       <div className="min-h-screen flex items-center justify-center px-4 py-16" style={{ background: "var(--bg)" }}>
         <div className="max-w-md w-full text-center">
           <div className="text-7xl mb-4">🎉</div>
-          <h1 className="text-3xl font-extrabold text-gray-900 mb-2">Board Created!</h1>
-          <p className="text-gray-500 mb-8">Share the links below and let the cheers roll in.</p>
+          <h1 className="text-3xl font-extrabold mb-2" style={{ color: "var(--text)" }}>Board Created!</h1>
+          <p className="mb-8" style={{ color: "var(--muted)" }}>Share the links below and let the cheers roll in.</p>
 
           <div className="space-y-3 mb-8">
-            <div className="bg-white rounded-2xl border p-4 text-left" style={{ borderColor: "var(--border)" }}>
+            <div className="rounded-2xl border p-4 text-left" style={{ borderColor: "var(--border)", background: "var(--card)" }}>
               <p className="text-xs font-semibold text-gray-400 uppercase mb-1.5">Board URL (internal)</p>
               <div className="flex items-center gap-2">
                 <span className="flex-1 text-sm truncate font-mono" style={{ color: "var(--accent)" }}>{boardUrl}</span>
@@ -522,7 +572,7 @@ export default function NewBoardPage() {
               </div>
             </div>
 
-            <div className="bg-white rounded-2xl border p-4 text-left" style={{ borderColor: "var(--border)" }}>
+            <div className="rounded-2xl border p-4 text-left" style={{ borderColor: "var(--border)", background: "var(--card)" }}>
               <p className="text-xs font-semibold text-gray-400 uppercase mb-1.5">Public Share URL</p>
               <div className="flex items-center gap-2">
                 <span className="flex-1 text-sm truncate font-mono" style={{ color: "var(--muted)" }}>{shareUrl}</span>

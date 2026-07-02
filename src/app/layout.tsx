@@ -1,17 +1,20 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import NavClient from "./NavClient";
 
 export const metadata: Metadata = {
-  title: "Cheers from Applied — Celebrate Your Team",
-  description:
-    "Employee celebration boards. Send messages, GIFs, photos and voice notes for birthdays, promotions, new hires and more.",
+  title: "Cheers from Applied",
+  description: "Celebrate your team's milestones with collaborative cheer boards",
   openGraph: {
-    title: "Cheers from Applied — Celebrate Your Team",
-    description:
-      "Employee celebration boards. Send messages, GIFs, photos and voice notes for birthdays, promotions, new hires and more.",
+    title: "Cheers from Applied",
+    description: "Celebrate your team's milestones with collaborative cheer boards",
+    siteName: "Cheers from Applied",
     type: "website",
   },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#1558D6",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

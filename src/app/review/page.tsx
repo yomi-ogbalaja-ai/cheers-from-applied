@@ -11,9 +11,31 @@ const TYPE_EMOJI: Record<string, string> = {
   get_well: "💐",
   new_hire: "👋",
   personal_achievement: "🌟",
+  farewell: "👋",
+  milestone: "🌟",
+  shoutout: "📣",
+  welcome: "🎉",
+  other: "💛",
+};
+
+const TYPE_LABEL: Record<string, string> = {
+  birthday: "Birthdays",
+  wedding: "Weddings",
+  new_baby: "New Babies",
+  work_anniversary: "Work Anniversaries",
+  promotion: "Promotions",
+  get_well: "Get Well",
+  new_hire: "New Hires",
+  personal_achievement: "Achievements",
+  farewell: "Farewells",
+  milestone: "Milestones",
+  shoutout: "Shoutouts",
+  welcome: "Welcomes",
+  other: "Other",
 };
 
 const APPLIED_VALUES = ["Win Together", "Be Bold", "Move with Urgency"];
+const VALUE_COLORS = ["#1558D6", "#4D8EFF", "#93B4FF"];
 
 interface BoardSummary {
   id: string;
@@ -41,6 +63,14 @@ interface ReviewData {
   boards: BoardSummary[];
 }
 
+const cardStyle: React.CSSProperties = {
+  border: "1px solid var(--border)",
+  borderRadius: 14,
+  padding: "24px 26px",
+  background: "var(--card)",
+  marginBottom: 20,
+};
+
 export default function ReviewPage() {
   const [data, setData] = useState<ReviewData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -57,13 +87,20 @@ export default function ReviewPage() {
 
   if (loading) {
     return (
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "60vh", color: "var(--muted)" }}>
-        Loading…
+      <div style={{ maxWidth: 860, margin: "0 auto", padding: "40px 24px" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+          {[200, 140, 180].map((h, i) => (
+            <div
+              key={i}
+              style={{ height: h, borderRadius: 14, background: "var(--accent-light)", opacity: 0.6 }}
+            />
+          ))}
+        </div>
       </div>
     );
   }
 
-  if (!data) {
+  if (!data || !data.by_month) {
     return (
       <div style={{ padding: "2rem", color: "var(--muted)" }}>
         Could not load review data.
@@ -72,147 +109,243 @@ export default function ReviewPage() {
   }
 
   const maxMonth = Math.max(...data.by_month.map((m) => m.count), 1);
-  const maxValue = Math.max(...APPLIED_VALUES.map((v) => data.by_value[v] ?? 0), 1);
-
-  const topValue = APPLIED_VALUES.reduce((best, v) =>
-    (data.by_value[v] ?? 0) > (data.by_value[best] ?? 0) ? v : best,
-    APPLIED_VALUES[0]
+  const peakIndex = data.by_month.reduce(
+    (best, m, i) => (m.count > data.by_month[best].count ? i : best),
+    0
   );
+  const hasAnyMonth = data.by_month.some((m) => m.count > 0);
+
+  const valuesTotal = APPLIED_VALUES.reduce((s, v) => s + (data.by_value[v] ?? 0), 0);
+
+  const typeEntries = Object.entries(data.by_type ?? {}).sort((a, b) => b[1] - a[1]);
 
   return (
-    <div style={{ maxWidth: 860, margin: "0 auto", padding: "2rem 1.5rem", color: "var(--text)" }}>
+    <div style={{ maxWidth: 860, margin: "0 auto", padding: "40px 24px", color: "var(--text)" }}>
       {/* Header */}
-      <div style={{ marginBottom: "2.5rem" }}>
-        <p style={{ fontSize: "0.75rem", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--accent)", marginBottom: "0.4rem" }}>
+      <div style={{ marginBottom: 36 }}>
+        <p
+          style={{
+            fontSize: 11,
+            fontWeight: 700,
+            letterSpacing: "0.1em",
+            textTransform: "uppercase",
+            color: "var(--accent)",
+            margin: "0 0 6px",
+          }}
+        >
           Applied Intuition
         </p>
-        <h1 style={{ fontSize: "2rem", fontWeight: 700, margin: 0, lineHeight: 1.2 }}>
+        <h1 style={{ fontSize: 30, fontWeight: 800, margin: 0, lineHeight: 1.2 }}>
           Year in Review
         </h1>
-        <p style={{ marginTop: "0.5rem", color: "var(--muted)", fontSize: "0.95rem" }}>
+        <p style={{ marginTop: 8, color: "var(--muted)", fontSize: 15 }}>
           {data.year} · Celebrating the people who make Applied great
         </p>
       </div>
 
-      {/* Stat cards */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "1rem", marginBottom: "2rem" }}>
-        {[
-          { label: "Boards created", value: data.total_boards },
-          { label: "Posts written", value: data.total_posts },
-          { label: "Top value", value: topValue },
-        ].map((stat) => (
-          <div
-            key={stat.label}
-            style={{
-              border: "1px solid var(--border)",
-              borderRadius: 12,
-              padding: "1.25rem 1rem",
-              background: "var(--bg)",
-              boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
-            }}
-          >
-            <p style={{ fontSize: "0.75rem", color: "var(--muted)", marginBottom: "0.4rem", fontWeight: 500 }}>
-              {stat.label}
-            </p>
-            <p style={{ fontSize: "1.6rem", fontWeight: 700, margin: 0, color: "var(--text)", lineHeight: 1 }}>
-              {stat.value}
-            </p>
-          </div>
-        ))}
-      </div>
-
-      {/* By Value */}
+      {/* Hero */}
       <div
         style={{
+          ...cardStyle,
+          textAlign: "center",
+          padding: "48px 26px",
+          background: "var(--accent-light)",
           border: "1px solid var(--border)",
-          borderRadius: 12,
-          padding: "1.5rem",
-          background: "var(--bg)",
-          boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
-          marginBottom: "1.5rem",
         }}
       >
-        <h2 style={{ fontSize: "1rem", fontWeight: 600, margin: "0 0 1.25rem" }}>By Applied Value</h2>
-        <div style={{ display: "flex", flexDirection: "column", gap: "0.85rem" }}>
-          {APPLIED_VALUES.map((v) => {
-            const count = data.by_value[v] ?? 0;
-            const pct = Math.round((count / maxValue) * 100);
-            return (
-              <div key={v}>
-                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.3rem", fontSize: "0.875rem" }}>
-                  <span style={{ fontWeight: 500 }}>{v}</span>
-                  <span style={{ color: "var(--muted)" }}>{count}</span>
-                </div>
-                <div style={{ background: "var(--border)", borderRadius: 4, height: 8, overflow: "hidden" }}>
-                  <div
-                    style={{
-                      width: `${pct}%`,
-                      height: "100%",
-                      background: "var(--accent)",
-                      borderRadius: 4,
-                      transition: "width 0.4s ease",
-                    }}
-                  />
-                </div>
-              </div>
-            );
-          })}
+        <div
+          style={{
+            fontSize: 72,
+            fontWeight: 800,
+            color: "var(--accent)",
+            lineHeight: 1,
+            letterSpacing: "-0.02em",
+          }}
+        >
+          {data.total_posts}
+        </div>
+        <div
+          style={{
+            fontSize: 13,
+            fontWeight: 700,
+            textTransform: "uppercase",
+            letterSpacing: "0.1em",
+            color: "var(--muted)",
+            marginTop: 12,
+          }}
+        >
+          Cheers this year
         </div>
       </div>
 
-      {/* By Month bar chart */}
-      <div
-        style={{
-          border: "1px solid var(--border)",
-          borderRadius: 12,
-          padding: "1.5rem",
-          background: "var(--bg)",
-          boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
-          marginBottom: "1.5rem",
-        }}
-      >
-        <h2 style={{ fontSize: "1rem", fontWeight: 600, margin: "0 0 1.25rem" }}>Boards by Month</h2>
-        <div style={{ display: "flex", alignItems: "flex-end", gap: "0.5rem", height: 120 }}>
-          {data.by_month.map((m) => {
-            const heightPct = m.count > 0 ? Math.max(8, Math.round((m.count / maxMonth) * 100)) : 4;
+      {/* Monthly bar chart */}
+      <div style={cardStyle}>
+        <h2 style={{ fontSize: 16, fontWeight: 700, margin: "0 0 22px" }}>Cheers by Month</h2>
+        <div style={{ display: "flex", alignItems: "flex-end", gap: 8, height: 150 }}>
+          {data.by_month.map((m, i) => {
+            const isPeak = hasAnyMonth && i === peakIndex && m.count > 0;
+            const heightPct = m.count > 0 ? Math.max(8, Math.round((m.count / maxMonth) * 100)) : 3;
             return (
               <div
                 key={m.month}
-                style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: "0.35rem" }}
-                title={m.boards.join(", ") || "No boards"}
+                style={{
+                  flex: 1,
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  gap: 6,
+                  height: "100%",
+                }}
+                title={`${m.month}: ${m.count} board${m.count === 1 ? "" : "s"}${
+                  m.boards.length ? " — " + m.boards.join(", ") : ""
+                }`}
               >
-                <div style={{ width: "100%", display: "flex", flexDirection: "column", justifyContent: "flex-end", height: 96 }}>
+                {isPeak && (
+                  <span
+                    style={{
+                      fontSize: 9,
+                      fontWeight: 700,
+                      textTransform: "uppercase",
+                      letterSpacing: "0.05em",
+                      color: "var(--accent-dark)",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    Peak month
+                  </span>
+                )}
+                <div
+                  style={{
+                    width: "100%",
+                    flex: 1,
+                    display: "flex",
+                    flexDirection: "column",
+                    justifyContent: "flex-end",
+                  }}
+                >
                   <div
                     style={{
                       width: "100%",
                       height: `${heightPct}%`,
-                      background: m.count > 0 ? "var(--accent)" : "var(--border)",
-                      borderRadius: "4px 4px 0 0",
-                      opacity: m.count > 0 ? 1 : 0.4,
+                      background: isPeak
+                        ? "var(--accent-dark)"
+                        : m.count > 0
+                        ? "var(--accent)"
+                        : "var(--border)",
+                      borderRadius: "6px 6px 0 0",
+                      transition: "height 0.4s ease",
                     }}
                   />
                 </div>
-                <span style={{ fontSize: "0.65rem", color: "var(--muted)", fontWeight: 500 }}>{m.month}</span>
+                <span
+                  style={{
+                    fontSize: 11,
+                    color: isPeak ? "var(--accent-dark)" : "var(--muted)",
+                    fontWeight: isPeak ? 700 : 500,
+                  }}
+                >
+                  {m.month}
+                </span>
               </div>
             );
           })}
         </div>
       </div>
 
-      {/* Recent boards */}
-      <div
-        style={{
-          border: "1px solid var(--border)",
-          borderRadius: 12,
-          padding: "1.5rem",
-          background: "var(--bg)",
-          boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
-        }}
-      >
-        <h2 style={{ fontSize: "1rem", fontWeight: 600, margin: "0 0 1.25rem" }}>All Boards</h2>
-        <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+      {/* By Value */}
+      <div style={cardStyle}>
+        <h2 style={{ fontSize: 16, fontWeight: 700, margin: "0 0 20px" }}>By Applied Value</h2>
+        {valuesTotal === 0 ? (
+          <p style={{ color: "var(--muted)", fontSize: 14, margin: 0 }}>
+            No values-tagged boards yet.
+          </p>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            {APPLIED_VALUES.map((v, i) => {
+              const count = data.by_value[v] ?? 0;
+              const pct = valuesTotal > 0 ? Math.round((count / valuesTotal) * 100) : 0;
+              return (
+                <div key={v}>
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      marginBottom: 6,
+                      fontSize: 14,
+                    }}
+                  >
+                    <span style={{ fontWeight: 600 }}>{v}</span>
+                    <span style={{ color: "var(--muted)" }}>
+                      {count} · {pct}%
+                    </span>
+                  </div>
+                  <div
+                    style={{
+                      background: "var(--border-light)",
+                      borderRadius: 999,
+                      height: 10,
+                      overflow: "hidden",
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: `${pct}%`,
+                        height: "100%",
+                        background: VALUE_COLORS[i % VALUE_COLORS.length],
+                        borderRadius: 999,
+                        transition: "width 0.4s ease",
+                      }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* By Type */}
+      <div style={cardStyle}>
+        <h2 style={{ fontSize: 16, fontWeight: 700, margin: "0 0 20px" }}>Board Types</h2>
+        {typeEntries.length === 0 ? (
+          <p style={{ color: "var(--muted)", fontSize: 14, margin: 0 }}>No boards yet.</p>
+        ) : (
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))",
+              gap: 12,
+            }}
+          >
+            {typeEntries.map(([type, count]) => (
+              <div
+                key={type}
+                style={{
+                  border: "1px solid var(--border-light)",
+                  borderRadius: 12,
+                  padding: "16px 14px",
+                  textAlign: "center",
+                }}
+              >
+                <div style={{ fontSize: 28, marginBottom: 8 }}>{TYPE_EMOJI[type] ?? "🎉"}</div>
+                <div style={{ fontSize: 22, fontWeight: 800, color: "var(--text)" }}>{count}</div>
+                <div style={{ fontSize: 12, color: "var(--muted)", fontWeight: 600, marginTop: 2 }}>
+                  {TYPE_LABEL[type] ?? type}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* All boards */}
+      <div style={cardStyle}>
+        <h2 style={{ fontSize: 16, fontWeight: 700, margin: "0 0 18px" }}>All Boards</h2>
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           {data.boards.length === 0 && (
-            <p style={{ color: "var(--muted)", fontSize: "0.875rem" }}>No boards yet for {data.year}.</p>
+            <p style={{ color: "var(--muted)", fontSize: 14, margin: 0 }}>
+              No boards yet for {data.year}.
+            </p>
           )}
           {data.boards.map((b) => (
             <div
@@ -221,27 +354,59 @@ export default function ReviewPage() {
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "space-between",
-                padding: "0.75rem 1rem",
-                border: "1px solid var(--border)",
-                borderRadius: 8,
-                background: "var(--bg)",
+                padding: "12px 16px",
+                border: "1px solid var(--border-light)",
+                borderRadius: 10,
               }}
             >
-              <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-                <span style={{ fontSize: "1.25rem" }}>{TYPE_EMOJI[b.type] ?? "🎉"}</span>
-                <div>
-                  <p style={{ margin: 0, fontWeight: 500, fontSize: "0.875rem" }}>{b.title}</p>
-                  <p style={{ margin: 0, fontSize: "0.75rem", color: "var(--muted)" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
+                <span style={{ fontSize: 20 }}>{TYPE_EMOJI[b.type] ?? "🎉"}</span>
+                <div style={{ minWidth: 0 }}>
+                  <p style={{ margin: 0, fontWeight: 600, fontSize: 14 }}>{b.title}</p>
+                  <p style={{ margin: 0, fontSize: 12, color: "var(--muted)" }}>
                     {b.honoree_name}
                     {b.values_tag ? ` · ${b.values_tag}` : ""}
                   </p>
                 </div>
               </div>
-              <div style={{ textAlign: "right", fontSize: "0.8rem", color: "var(--muted)" }}>
-                <span style={{ fontWeight: 600, color: "var(--text)" }}>{b.post_count}</span> posts
+              <div style={{ textAlign: "right", fontSize: 13, color: "var(--muted)", whiteSpace: "nowrap" }}>
+                <span style={{ fontWeight: 700, color: "var(--text)" }}>{b.post_count}</span> posts
               </div>
             </div>
           ))}
+        </div>
+      </div>
+
+      {/* Shareable summary card */}
+      <div
+        style={{
+          border: "2px solid var(--accent)",
+          borderRadius: 18,
+          padding: "36px 30px",
+          background: "var(--card)",
+          textAlign: "center",
+          marginTop: 8,
+        }}
+      >
+        <div style={{ fontSize: 32, marginBottom: 10 }}>🎉</div>
+        <div
+          style={{
+            fontSize: 11,
+            fontWeight: 700,
+            letterSpacing: "0.12em",
+            textTransform: "uppercase",
+            color: "var(--accent)",
+            marginBottom: 14,
+          }}
+        >
+          Cheers from Applied · {data.year}
+        </div>
+        <div style={{ fontSize: 24, fontWeight: 800, color: "var(--text)", lineHeight: 1.4 }}>
+          {data.total_posts} cheers · {data.total_boards} boards ·{" "}
+          {typeEntries.length} celebration types
+        </div>
+        <div style={{ fontSize: 14, color: "var(--muted)", marginTop: 12 }}>
+          Thanks for celebrating together this year.
         </div>
       </div>
     </div>

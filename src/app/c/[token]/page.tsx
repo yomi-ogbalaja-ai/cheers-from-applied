@@ -56,7 +56,7 @@ export default function SharedBoardPage() {
         if (!confettiFired.current) {
           confettiFired.current = true;
           confetti({ particleCount: 70, spread: 80, origin: { y: 0.3 },
-            colors: ["#6366f1", "#ec4899", "#f59e0b", "#10b981"] });
+            colors: ["#1558D6", "#93B4FF", "#EDF2FC", "#ffffff"] });
         }
       })
       .catch(() => setNotFound(true));
@@ -64,10 +64,10 @@ export default function SharedBoardPage() {
 
   if (notFound) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-gray-50">
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4" style={{ background: "var(--bg)" }}>
         <p className="text-5xl">🔍</p>
-        <h1 className="text-2xl font-bold text-gray-800">Board not found</h1>
-        <p className="text-gray-500">This link may have expired or never existed.</p>
+        <h1 className="text-2xl font-bold" style={{ color: "var(--text)" }}>Board not found</h1>
+        <p style={{ color: "var(--muted)" }}>This link may have expired or never existed.</p>
         <a href="/" className="text-sm mt-2" style={{ color: "var(--accent)" }}>← Go home</a>
       </div>
     );
@@ -75,8 +75,8 @@ export default function SharedBoardPage() {
 
   if (!board) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <p className="text-gray-400 animate-pulse">Loading board…</p>
+      <div className="min-h-screen flex items-center justify-center" style={{ background: "var(--bg)" }}>
+        <p className="animate-pulse" style={{ color: "var(--muted)" }}>Loading board…</p>
       </div>
     );
   }
@@ -85,11 +85,13 @@ export default function SharedBoardPage() {
   const typeEmoji = TYPE_EMOJI[board.type] ?? "🎉";
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
+    <div className="min-h-screen flex flex-col" style={{ background: "var(--bg)" }}>
       {/* Minimal header */}
-      <header className="sticky top-0 z-20 bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between">
-        <span className="font-bold text-gray-900 text-base">🎉 Cheers from Applied</span>
-        <span className="text-xs text-gray-400 bg-gray-100 rounded-full px-3 py-1">Shared board</span>
+      <header className="sticky top-0 z-20 px-6 py-3 flex items-center justify-between"
+        style={{ background: "var(--card)", borderBottom: "1px solid var(--border)" }}>
+        <span className="font-bold text-base" style={{ color: "var(--text)" }}>🎉 Cheers from Applied</span>
+        <span className="text-xs rounded-full px-3 py-1"
+          style={{ color: "var(--muted)", background: "var(--accent-light)" }}>Shared board</span>
       </header>
 
       {/* Hero banner */}
@@ -119,8 +121,9 @@ export default function SharedBoardPage() {
       {/* Posts masonry */}
       <main className="flex-1 max-w-5xl mx-auto w-full px-4 py-10">
         <div className="columns-1 sm:columns-2 lg:columns-3 gap-4">
-          {posts.map((post) => (
-            <div key={post.id} className="break-inside-avoid mb-4">
+          {posts.map((post, index) => (
+            <div key={post.id} className="break-inside-avoid mb-4"
+              style={{ animation: `fadeInUp 0.4s ease ${index * 0.05}s both` }}>
               {post.is_manager_note ? (
                 <div className="rounded-2xl p-5 shadow-sm text-white" style={{ background: "var(--accent)" }}>
                   <p className="text-sm font-semibold mb-2 opacity-80">📌 Manager note</p>
@@ -128,38 +131,42 @@ export default function SharedBoardPage() {
                   <p className="text-xs opacity-60 mt-3">{post.author_name}</p>
                 </div>
               ) : post.photo_url ? (
-                <div className="rounded-2xl overflow-hidden border border-gray-200 shadow-sm bg-white">
+                <div className="rounded-2xl overflow-hidden shadow-sm"
+                  style={{ background: "var(--card)", border: "1px solid var(--border)" }}>
                   <img src={post.photo_url} alt={`${post.author_name}'s photo`} className="w-full object-cover" />
                   <div className="flex items-center gap-2 px-3 py-2">
                     <Avatar name={post.author_name} color={post.author_avatar_color} size={6} />
-                    <p className="text-xs text-gray-500">{post.author_name}</p>
+                    <p className="text-xs" style={{ color: "var(--muted)" }}>{post.author_name}</p>
                     {post.reaction && <span className="ml-auto text-base">{post.reaction}</span>}
                   </div>
                 </div>
               ) : post.gif_url ? (
-                <div className="rounded-2xl overflow-hidden border border-gray-200 shadow-sm bg-white">
+                <div className="rounded-2xl overflow-hidden shadow-sm"
+                  style={{ background: "var(--card)", border: "1px solid var(--border)" }}>
                   <img src={post.gif_url} alt={post.gif_title ?? "GIF"} className="w-full object-cover max-h-56" />
                   <div className="flex items-center gap-2 px-3 py-2">
                     <Avatar name={post.author_name} color={post.author_avatar_color} size={6} />
-                    <p className="text-xs text-gray-500">{post.author_name}</p>
+                    <p className="text-xs" style={{ color: "var(--muted)" }}>{post.author_name}</p>
                     {post.reaction && <span className="ml-auto text-base">{post.reaction}</span>}
                   </div>
                 </div>
               ) : post.audio_url ? (
-                <div className="rounded-2xl p-5 bg-white border border-gray-200 shadow-sm">
-                  <p className="text-sm font-semibold text-gray-700 mb-3">🎙 Voice message</p>
+                <div className="rounded-2xl p-5 shadow-sm"
+                  style={{ background: "var(--card)", border: "1px solid var(--border)" }}>
+                  <p className="text-sm font-semibold mb-3" style={{ color: "var(--text)" }}>🎙 Voice message</p>
                   <audio controls className="w-full h-8" src={post.audio_url} />
                   <div className="flex items-center gap-2 mt-3">
                     <Avatar name={post.author_name} color={post.author_avatar_color} size={6} />
-                    <p className="text-xs text-gray-400">{post.author_name}</p>
+                    <p className="text-xs" style={{ color: "var(--muted)" }}>{post.author_name}</p>
                   </div>
                 </div>
               ) : (
-                <div className="rounded-2xl p-5 bg-white border border-gray-200 shadow-sm">
+                <div className="rounded-2xl p-5 shadow-sm"
+                  style={{ background: "var(--card)", border: "1px solid var(--border)" }}>
                   <div className="flex items-center gap-2 mb-3">
                     <Avatar name={post.author_name} color={post.author_avatar_color} size={7} />
                     <div>
-                      <p className="text-sm font-medium text-gray-800">{post.author_name}</p>
+                      <p className="text-sm font-medium" style={{ color: "var(--text)" }}>{post.author_name}</p>
                       {post.values_tag && (
                         <span className="text-[10px] font-medium px-2 py-0.5 rounded-full"
                           style={{ background: "var(--accent-light)", color: "var(--accent)" }}>
@@ -168,7 +175,7 @@ export default function SharedBoardPage() {
                       )}
                     </div>
                   </div>
-                  {post.message && <p className="text-gray-700 text-sm leading-relaxed">{post.message}</p>}
+                  {post.message && <p className="text-sm leading-relaxed" style={{ color: "var(--text)" }}>{post.message}</p>}
                   {post.reaction && <p className="text-lg mt-3">{post.reaction}</p>}
                 </div>
               )}
@@ -177,8 +184,9 @@ export default function SharedBoardPage() {
         </div>
       </main>
 
-      <footer className="border-t border-gray-200 bg-white py-6 text-center flex flex-col items-center gap-1">
-        <p className="text-sm text-gray-500">Made with ❤️ at Applied</p>
+      <footer className="py-6 text-center flex flex-col items-center gap-1"
+        style={{ background: "var(--card)", borderTop: "1px solid var(--border)" }}>
+        <p className="text-sm" style={{ color: "var(--muted)" }}>Made with ❤️ at Applied</p>
         <a href="/" className="text-sm font-medium hover:underline" style={{ color: "var(--accent)" }}>
           Create your own board →
         </a>

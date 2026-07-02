@@ -23,31 +23,84 @@ const TYPE_LABEL: Record<string, string> = {
   other: "Celebration",
 };
 
-function urgencyStyle(daysUntil: number): React.CSSProperties {
-  if (daysUntil < 7) {
-    return { background: "#fef2f2", color: "#dc2626", border: "1px solid #fca5a5" };
-  } else if (daysUntil <= 14) {
-    return { background: "#fefce8", color: "#ca8a04", border: "1px solid #fde68a" };
+function daysAwayStyle(daysUntil: number): React.CSSProperties {
+  if (daysUntil <= 3) {
+    return { background: "rgba(220, 38, 38, 0.1)", color: "#dc2626" };
   }
-  return { background: "#f0fdf4", color: "#16a34a", border: "1px solid #bbf7d0" };
+  if (daysUntil <= 7) {
+    return { background: "rgba(202, 138, 4, 0.12)", color: "#b45309" };
+  }
+  return { background: "var(--accent-light)", color: "var(--accent)" };
 }
 
-function MilestoneRow({ item }: { item: any }) {
+function daysAwayLabel(daysUntil: number): string {
+  if (daysUntil === 0) return "Today";
+  if (daysUntil === 1) return "Tomorrow";
+  return `In ${daysUntil} days`;
+}
+
+function eventDate(daysUntil: number): Date {
+  const today = new Date();
+  const d = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  d.setDate(d.getDate() + daysUntil);
+  return d;
+}
+
+function MilestoneRow({ item, isLast }: { item: any; isLast: boolean }) {
+  const [hovered, setHovered] = useState(false);
+  const d = eventDate(item.days_until);
+
   return (
     <div
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
       style={{
         display: "flex",
         alignItems: "center",
-        gap: 14,
+        gap: 16,
         padding: "14px 20px",
-        borderBottom: "1px solid var(--border)",
-        background: "var(--bg)",
+        borderBottom: isLast ? "none" : "1px solid var(--border-light)",
+        background: hovered ? "var(--accent-light)" : "transparent",
+        transition: "background 0.15s ease",
       }}
     >
-      <span style={{ fontSize: 24, width: 32, textAlign: "center" }}>
+      {/* Date badge */}
+      <div
+        style={{
+          width: 52,
+          height: 52,
+          borderRadius: 12,
+          border: "1px solid var(--border)",
+          background: "var(--card)",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          flexShrink: 0,
+        }}
+      >
+        <span style={{ fontSize: 20, fontWeight: 800, color: "var(--text)", lineHeight: 1 }}>
+          {d.getDate()}
+        </span>
+        <span
+          style={{
+            fontSize: 10,
+            fontWeight: 700,
+            color: "var(--muted)",
+            textTransform: "uppercase",
+            letterSpacing: "0.06em",
+            marginTop: 2,
+          }}
+        >
+          {d.toLocaleString("en-US", { month: "short" })}
+        </span>
+      </div>
+
+      <span style={{ fontSize: 24, width: 30, textAlign: "center" }}>
         {TYPE_EMOJI[item.type] ?? "💛"}
       </span>
-      <div style={{ flex: 1 }}>
+
+      <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontWeight: 600, color: "var(--text)", fontSize: 15 }}>
           {item.honoree_name}
         </div>
@@ -55,21 +108,37 @@ function MilestoneRow({ item }: { item: any }) {
           {TYPE_LABEL[item.type] ?? item.type} · {item.title}
         </div>
       </div>
+
       <span
         style={{
-          ...urgencyStyle(item.days_until),
+          ...daysAwayStyle(item.days_until),
           borderRadius: 20,
-          padding: "3px 12px",
+          padding: "4px 12px",
           fontSize: 12,
           fontWeight: 700,
+          whiteSpace: "nowrap",
         }}
       >
-        {item.days_until === 0
-          ? "Today!"
-          : item.days_until === 1
-          ? "Tomorrow"
-          : `${item.days_until}d`}
+        {daysAwayLabel(item.days_until)}
       </span>
+
+      <Link
+        href="/board/new"
+        style={{
+          border: "1px solid var(--accent)",
+          color: hovered ? "#fff" : "var(--accent)",
+          background: hovered ? "var(--accent)" : "transparent",
+          borderRadius: 8,
+          padding: "6px 14px",
+          fontSize: 13,
+          fontWeight: 600,
+          textDecoration: "none",
+          whiteSpace: "nowrap",
+          transition: "all 0.15s ease",
+        }}
+      >
+        Create board
+      </Link>
     </div>
   );
 }
@@ -88,29 +157,22 @@ export default function CalendarPage() {
       .catch(() => setLoading(false));
   }, []);
 
-  const today = new Date();
-  const thisMonth = today.getMonth();
-  const thisYear = today.getFullYear();
-
-  const thisMonthItems = upcoming.filter((item) => {
-    const d = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-    d.setDate(d.getDate() + item.days_until);
-    return d.getMonth() === thisMonth && d.getFullYear() === thisYear;
-  });
-
-  const nextMonthItems = upcoming.filter((item) => {
-    const d = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-    d.setDate(d.getDate() + item.days_until);
-    const nm = (thisMonth + 1) % 12;
-    const nmYear = thisMonth === 11 ? thisYear + 1 : thisYear;
-    return d.getMonth() === nm && d.getFullYear() === nmYear;
-  });
-
-  const monthName = (offset: number) =>
-    new Date(thisYear, thisMonth + offset, 1).toLocaleString("en-US", { month: "long", year: "numeric" });
+  // Group by month
+  const groups: { key: string; label: string; items: any[] }[] = [];
+  for (const item of upcoming) {
+    const d = eventDate(item.days_until);
+    const key = `${d.getFullYear()}-${d.getMonth()}`;
+    const label = d.toLocaleString("en-US", { month: "long", year: "numeric" });
+    let group = groups.find((g) => g.key === key);
+    if (!group) {
+      group = { key, label, items: [] };
+      groups.push(group);
+    }
+    group.items.push(item);
+  }
 
   return (
-    <div style={{ padding: "32px 40px", maxWidth: 820, margin: "0 auto" }}>
+    <div style={{ padding: "40px 48px", maxWidth: 820, margin: "0 auto" }}>
       {/* Header */}
       <div style={{ marginBottom: 32 }}>
         <div
@@ -125,8 +187,15 @@ export default function CalendarPage() {
         >
           Applied Intuition
         </div>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <h1 style={{ fontSize: 28, fontWeight: 800, color: "var(--text)", margin: 0 }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 16,
+          }}
+        >
+          <h1 style={{ fontSize: 30, fontWeight: 800, color: "var(--text)", margin: 0 }}>
             Milestone Calendar
           </h1>
           <Link
@@ -134,11 +203,12 @@ export default function CalendarPage() {
             style={{
               background: "var(--accent)",
               color: "#fff",
-              borderRadius: 8,
+              borderRadius: 10,
               padding: "10px 20px",
               fontWeight: 700,
               fontSize: 14,
               textDecoration: "none",
+              whiteSpace: "nowrap",
             }}
           >
             + New Board
@@ -147,32 +217,45 @@ export default function CalendarPage() {
       </div>
 
       {loading && (
-        <div style={{ color: "var(--muted)", fontSize: 15 }}>Loading milestones…</div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          {[0, 1, 2].map((i) => (
+            <div
+              key={i}
+              style={{
+                height: 80,
+                borderRadius: 12,
+                background: "var(--accent-light)",
+                opacity: 0.6,
+              }}
+            />
+          ))}
+        </div>
       )}
 
       {!loading && upcoming.length === 0 && (
         <div
           style={{
             textAlign: "center",
-            padding: "64px 32px",
+            padding: "72px 32px",
             border: "1px dashed var(--border)",
-            borderRadius: 12,
+            borderRadius: 16,
             color: "var(--muted)",
           }}
         >
-          <div style={{ fontSize: 40, marginBottom: 16 }}>📅</div>
-          <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 8, color: "var(--text)" }}>
-            No upcoming milestones found
+          <div style={{ fontSize: 44, marginBottom: 16 }}>📅</div>
+          <div style={{ fontSize: 17, fontWeight: 700, marginBottom: 8, color: "var(--text)" }}>
+            No upcoming milestones
           </div>
-          <div style={{ fontSize: 14, marginBottom: 24 }}>
-            Create boards to track your team's important dates.
+          <div style={{ fontSize: 14, marginBottom: 28, maxWidth: 380, margin: "0 auto 28px" }}>
+            Nothing on the horizon yet. Create a board to start tracking your team's
+            birthdays, anniversaries, and big moments.
           </div>
           <Link
             href="/board/new"
             style={{
               background: "var(--accent)",
               color: "#fff",
-              borderRadius: 8,
+              borderRadius: 10,
               padding: "10px 22px",
               fontWeight: 700,
               fontSize: 14,
@@ -184,75 +267,44 @@ export default function CalendarPage() {
         </div>
       )}
 
-      {!loading && upcoming.length > 0 && (
-        <>
-          {/* This Month */}
-          <section style={{ marginBottom: 36 }}>
+      {!loading &&
+        groups.map((group) => (
+          <section key={group.key} style={{ marginBottom: 36 }}>
             <h2
               style={{
-                fontSize: 14,
+                position: "sticky",
+                top: 0,
+                zIndex: 5,
+                background: "var(--bg)",
+                fontSize: 13,
                 fontWeight: 700,
                 color: "var(--muted)",
                 textTransform: "uppercase",
                 letterSpacing: "0.08em",
-                marginBottom: 12,
+                margin: 0,
+                padding: "12px 0 10px",
               }}
             >
-              {monthName(0)}
+              {group.label}
             </h2>
             <div
               style={{
                 border: "1px solid var(--border)",
-                borderRadius: 10,
+                borderRadius: 14,
                 overflow: "hidden",
+                background: "var(--card)",
               }}
             >
-              {thisMonthItems.length === 0 ? (
-                <div style={{ padding: "18px 20px", color: "var(--muted)", fontSize: 14 }}>
-                  No milestones this month.
-                </div>
-              ) : (
-                thisMonthItems.map((item) => (
-                  <MilestoneRow key={item.board_id} item={item} />
-                ))
-              )}
+              {group.items.map((item, i) => (
+                <MilestoneRow
+                  key={item.board_id}
+                  item={item}
+                  isLast={i === group.items.length - 1}
+                />
+              ))}
             </div>
           </section>
-
-          {/* Next Month */}
-          <section>
-            <h2
-              style={{
-                fontSize: 14,
-                fontWeight: 700,
-                color: "var(--muted)",
-                textTransform: "uppercase",
-                letterSpacing: "0.08em",
-                marginBottom: 12,
-              }}
-            >
-              {monthName(1)}
-            </h2>
-            <div
-              style={{
-                border: "1px solid var(--border)",
-                borderRadius: 10,
-                overflow: "hidden",
-              }}
-            >
-              {nextMonthItems.length === 0 ? (
-                <div style={{ padding: "18px 20px", color: "var(--muted)", fontSize: 14 }}>
-                  No milestones next month.
-                </div>
-              ) : (
-                nextMonthItems.map((item) => (
-                  <MilestoneRow key={item.board_id} item={item} />
-                ))
-              )}
-            </div>
-          </section>
-        </>
-      )}
+        ))}
     </div>
   );
 }

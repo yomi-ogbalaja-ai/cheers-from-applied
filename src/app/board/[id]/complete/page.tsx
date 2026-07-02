@@ -25,8 +25,9 @@ export default async function BoardCompletePage({ params }: { params: Promise<{ 
   const res = await fetch(`${base}/api/boards/${id}`, { cache: "no-store" });
   if (!res.ok) notFound();
 
-  const { board, posts } = await res.json() as { board: Board; posts: Post[] };
+  const { board, posts, badges } = await res.json() as { board: Board; posts: Post[]; badges?: string[] };
   const cheers = posts.filter(p => !p.is_manager_note);
+  const contributors = new Set(posts.map(p => p.author_name)).size;
   const managerNote = posts.find(p => p.is_manager_note);
   const typeEmoji = TYPE_EMOJI[board.type] ?? "🎉";
   const shareUrl = `${base}/c/${board.share_token}`;
@@ -54,6 +55,26 @@ export default async function BoardCompletePage({ params }: { params: Promise<{ 
             {board.values_tag}
           </span>
         )}
+      </div>
+
+      {/* Stats row */}
+      <div className="max-w-2xl w-full mx-auto mt-8 px-6 grid grid-cols-3 gap-3">
+        <div className="rounded-xl border p-4 text-center" style={{ background: "var(--card)", borderColor: "var(--border)" }}>
+          <p className="text-2xl font-extrabold" style={{ color: "var(--accent)" }}>{cheers.length}</p>
+          <p className="text-xs mt-1" style={{ color: "var(--muted)" }}>Cheer{cheers.length !== 1 ? "s" : ""}</p>
+        </div>
+        <div className="rounded-xl border p-4 text-center" style={{ background: "var(--card)", borderColor: "var(--border)" }}>
+          <p className="text-2xl font-extrabold" style={{ color: "var(--accent)" }}>{contributors}</p>
+          <p className="text-xs mt-1" style={{ color: "var(--muted)" }}>Contributor{contributors !== 1 ? "s" : ""}</p>
+        </div>
+        <div className="rounded-xl border p-4 text-center" style={{ background: "var(--card)", borderColor: "var(--border)" }}>
+          <p className="text-2xl font-extrabold" style={{ color: "var(--accent)" }}>
+            {badges && badges.length > 0 ? badges.length : "🎉"}
+          </p>
+          <p className="text-xs mt-1" style={{ color: "var(--muted)" }}>
+            {badges && badges.length > 0 ? `Badge${badges.length !== 1 ? "s" : ""} earned` : "Board complete"}
+          </p>
+        </div>
       </div>
 
       {/* Manager note */}

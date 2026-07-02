@@ -221,6 +221,20 @@ function fmtDate(s: string) {
   return new Date(s).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
+function timeAgo(dateStr: string) {
+  const then = new Date(dateStr).getTime();
+  if (isNaN(then)) return fmtDate(dateStr);
+  const diff = Math.max(0, Date.now() - then);
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `${days}d ago`;
+  return fmtDate(dateStr);
+}
+
 const QUICK_REACTS = ["❤️","🔥","🙌","😂","👏","🎉"];
 
 function PostReactions({ post, onUpdate }: { post: Post; onUpdate?: () => Promise<void> }) {
@@ -329,11 +343,14 @@ function PostTile({ post, onUpdate }: { post: Post; onUpdate?: () => Promise<voi
   }
   if (post.photo_url) {
     return (
-      <div className="group rounded-2xl overflow-hidden bg-white shadow-sm break-inside-avoid mb-4" style={{ border: "1px solid var(--border)" }}>
+      <div className="group rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-shadow break-inside-avoid mb-4" style={{ background: "var(--card)", border: "1px solid var(--border)" }}>
         <img src={post.photo_url} alt="Post photo" className="w-full object-cover max-h-64" />
         <div className="flex items-center gap-2 p-3">
           <Avatar name={post.author_name} color={post.author_avatar_color} size={7} />
-          <p className="text-sm font-medium" style={{ color: "var(--text)" }}>{post.author_name}</p>
+          <div className="min-w-0">
+            <p className="text-sm font-medium truncate" style={{ color: "var(--text)" }}>{post.author_name}</p>
+            <p className="text-[11px]" style={{ color: "var(--muted)" }}>{timeAgo(post.created_at)}</p>
+          </div>
           {post.reaction && <span className="ml-auto text-lg">{post.reaction}</span>}
           {editBtn}
         </div>
@@ -343,11 +360,14 @@ function PostTile({ post, onUpdate }: { post: Post; onUpdate?: () => Promise<voi
   }
   if (post.gif_url) {
     return (
-      <div className="group rounded-2xl overflow-hidden bg-white shadow-sm break-inside-avoid mb-4" style={{ border: "1px solid var(--border)" }}>
+      <div className="group rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-shadow break-inside-avoid mb-4" style={{ background: "var(--card)", border: "1px solid var(--border)" }}>
         <img src={post.gif_url} alt={post.gif_title ?? "GIF"} className="w-full object-cover max-h-56" />
         <div className="flex items-center gap-2 p-3">
           <Avatar name={post.author_name} color={post.author_avatar_color} size={7} />
-          <p className="text-sm font-medium" style={{ color: "var(--text)" }}>{post.author_name}</p>
+          <div className="min-w-0">
+            <p className="text-sm font-medium truncate" style={{ color: "var(--text)" }}>{post.author_name}</p>
+            <p className="text-[11px]" style={{ color: "var(--muted)" }}>{timeAgo(post.created_at)}</p>
+          </div>
           {post.reaction && <span className="ml-auto text-lg">{post.reaction}</span>}
           {editBtn}
         </div>
@@ -357,7 +377,7 @@ function PostTile({ post, onUpdate }: { post: Post; onUpdate?: () => Promise<voi
   }
   if (post.audio_url) {
     return (
-      <div className="group rounded-2xl p-4 break-inside-avoid mb-4 shadow-sm" style={{ background: "var(--accent-light)", border: "1px solid var(--border)" }}>
+      <div className="group rounded-2xl p-4 break-inside-avoid mb-4 shadow-sm hover:shadow-md transition-shadow" style={{ background: "var(--accent-light)", border: "1px solid var(--border)" }}>
         <div className="flex items-center gap-2 mb-3">
           <span className="text-2xl">🎙</span>
           <span className="text-sm font-medium" style={{ color: "var(--accent)" }}>Voice message</span>
@@ -367,23 +387,23 @@ function PostTile({ post, onUpdate }: { post: Post; onUpdate?: () => Promise<voi
         <div className="flex items-center gap-2 mt-3">
           <Avatar name={post.author_name} color={post.author_avatar_color} size={7} />
           <p className="text-sm font-medium" style={{ color: "var(--text)" }}>{post.author_name}</p>
-          <p className="text-xs ml-auto" style={{ color: "var(--muted)" }}>{fmtDate(post.created_at)}</p>
+          <p className="text-xs ml-auto" style={{ color: "var(--muted)" }}>{timeAgo(post.created_at)}</p>
         </div>
         {editing && editBox}
       </div>
     );
   }
   return (
-    <div className="group rounded-2xl bg-white p-4 shadow-sm break-inside-avoid mb-4" style={{ border: "1px solid var(--border)" }}>
+    <div className="group rounded-2xl p-4 shadow-sm hover:shadow-md transition-shadow break-inside-avoid mb-4" style={{ background: "var(--card)", border: "1px solid var(--border)" }}>
       <div className="flex items-center gap-2 mb-2">
         <Avatar name={post.author_name} color={post.author_avatar_color} size={7} />
         <div className="min-w-0 flex-1">
           <p className="text-sm font-semibold truncate" style={{ color: "var(--text)" }}>{post.author_name}</p>
-          <p className="text-xs" style={{ color: "var(--muted)" }}>{fmtDate(post.created_at)}</p>
+          <p className="text-xs" style={{ color: "var(--muted)" }}>{timeAgo(post.created_at)}</p>
         </div>
         {post.values_tag && (
-          <span className="text-[10px] font-medium px-2 py-0.5 rounded-full flex-shrink-0"
-            style={{ background: "var(--accent-light)", color: "var(--accent)" }}>
+          <span className="text-[10px] px-1.5 py-0.5 rounded-full flex-shrink-0"
+            style={{ background: "var(--accent-light)", color: "var(--muted)", border: "1px solid var(--border-light)" }}>
             {post.values_tag}
           </span>
         )}
@@ -419,17 +439,17 @@ function CheerSnippet({ post, onUpdate }: { post: Post; onUpdate?: () => Promise
   }
 
   return (
-    <div className="group bg-white rounded-xl p-4 shadow-sm transition-all hover:shadow-md"
-      style={{ border: "1px solid var(--border)" }}>
+    <div className="group rounded-xl p-4 shadow-sm transition-all hover:shadow-md"
+      style={{ background: "var(--card)", border: "1px solid var(--border)" }}>
       <div className="flex items-center gap-3 mb-2">
         <Avatar name={post.author_name} color={post.author_avatar_color} size={8} />
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold truncate" style={{ color: "var(--text)" }}>{post.author_name}</p>
-          <p className="text-xs" style={{ color: "var(--muted)" }}>{fmtDate(post.created_at)}</p>
+          <p className="text-xs" style={{ color: "var(--muted)" }}>{timeAgo(post.created_at)}</p>
         </div>
         {post.values_tag && (
-          <span className="text-[10px] font-medium px-2 py-0.5 rounded-full flex-shrink-0"
-            style={{ background: "var(--accent-light)", color: "var(--accent)" }}>
+          <span className="text-[10px] px-1.5 py-0.5 rounded-full flex-shrink-0"
+            style={{ background: "var(--accent-light)", color: "var(--muted)", border: "1px solid var(--border-light)" }}>
             {post.values_tag}
           </span>
         )}
@@ -485,6 +505,11 @@ export default function BoardPage() {
   const [loading, setLoading] = useState(true);
   const [showAllPosts, setShowAllPosts] = useState(false);
   const confettiFired = useRef(false);
+
+  // Toast + mobile composer sheet
+  const [toast, setToast] = useState<string | null>(null);
+  const [showComposerSheet, setShowComposerSheet] = useState(false);
+  function showToast(msg: string) { setToast(msg); setTimeout(() => setToast(null), 2500); }
 
   // Composer state
   const [tab, setTab] = useState<"text" | "gif" | "photo" | "voice">("text");
@@ -640,6 +665,8 @@ export default function BoardPage() {
       confetti({ particleCount: 50, spread: 60, origin: { y: 0.6 }, colors: confettiColors });
       setMessage(""); setReaction(""); setSelectedGif(null); setPhotoData(null);
       setAudioBlob(null); setAudioUrl(null); setTab("text"); setValueTag(""); setAnonymous(false);
+      setShowComposerSheet(false);
+      showToast("Cheer posted 🎉");
       await fetchBoard();
     }
     setPosting(false);
@@ -676,6 +703,7 @@ export default function BoardPage() {
       });
       setBadgeModal(false);
       setBadgeForm({ person_name: "", person_email: "", badge_type: "team_player", reason: "" });
+      showToast("Badge awarded 🏅");
       fetchBoard();
     } finally {
       setBadgeLoading(false);
@@ -707,16 +735,261 @@ export default function BoardPage() {
     { key: "receiver", label: "🌟 Your Board" },
   ];
 
+  // Composer content — shared between the desktop sidebar and the mobile bottom sheet
+  const composerContent = (
+    <>
+      {/* Tabs */}
+      <div className="flex" style={{ borderBottom: "1px solid var(--border)" }}>
+        {(["text","gif","photo","voice"] as const).map(t => (
+          <button key={t} onClick={() => setTab(t)}
+            className="flex-1 py-2.5 text-base transition-colors"
+            style={tab === t
+              ? { borderBottom: "2px solid var(--accent)", background: "var(--accent-light)" }
+              : { color: "var(--muted)" }}>
+            {t === "text" ? "💬" : t === "gif" ? "🎞" : t === "photo" ? "📷" : "🎙"}
+          </button>
+        ))}
+      </div>
+
+      <div className="p-4 space-y-3">
+        {/* TEXT TAB */}
+        {tab === "text" && (
+          <>
+            <div className="flex flex-wrap gap-1.5">
+              {autoMsgs.map(m => (
+                <button key={m.label} onClick={() => setMessage(m.text)}
+                  className="px-2 py-1 rounded-full text-xs transition-colors"
+                  style={{ background: "var(--accent-light)", color: "var(--accent)" }}>
+                  {m.label}
+                </button>
+              ))}
+            </div>
+            {/* AI Message Generator */}
+            <div className="rounded-xl p-3 space-y-2" style={{ background: "var(--accent-light)" }}>
+              <p className="text-xs font-medium" style={{ color: "var(--accent)" }}>✨ AI-generated cheer</p>
+              <input value={aiContext} onChange={e => setAiContext(e.target.value)}
+                placeholder="Optional: add context (e.g. 'worked on the sensor team')"
+                className="w-full text-xs rounded-lg px-2.5 py-1.5 focus:outline-none"
+                style={{ border: "1px solid var(--border)", background: "var(--card)", color: "var(--text)" }} />
+              <button disabled={aiLoading}
+                onClick={async () => {
+                  setAiLoading(true);
+                  const res = await fetch(`/api/boards/${id}/ai-message`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ milestone_type: board?.type, honoree_name: board?.honoree_name, sender_context: aiContext }),
+                  });
+                  const d = await res.json();
+                  if (d.message) setMessage(d.message);
+                  setAiLoading(false);
+                }}
+                className="w-full py-1.5 rounded-lg text-xs font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+                style={{ background: "var(--accent)" }}>
+                {aiLoading ? "Generating…" : "Generate a cheer"}
+              </button>
+            </div>
+            <textarea value={message} onChange={e => setMessage(e.target.value)}
+              placeholder="Write your message…" rows={3}
+              className="w-full text-sm rounded-xl px-3 py-2 resize-none focus:outline-none"
+              style={{ border: "1px solid var(--border)", outline: "none" }}
+              onFocus={e => e.target.style.boxShadow = "0 0 0 2px var(--accent)"}
+              onBlur={e => e.target.style.boxShadow = ""} />
+            <div className="flex flex-wrap gap-1">
+              {REACTIONS.map(r => (
+                <button key={r} onClick={() => setReaction(reaction === r ? "" : r)}
+                  className="text-lg p-1 rounded-lg transition-colors"
+                  style={reaction === r ? { background: "var(--accent-light)" } : {}}>
+                  {r}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
+
+        {/* GIF TAB */}
+        {tab === "gif" && (
+          <div className="space-y-2">
+            <form onSubmit={e => { e.preventDefault(); searchGifs(gifQuery); }} className="flex gap-1.5">
+              <input
+                value={gifQuery}
+                onChange={e => setGifQuery(e.target.value)}
+                placeholder="Search GIFs…"
+                className="flex-1 text-sm rounded-xl px-3 py-2 focus:outline-none"
+                style={{ border: "1px solid var(--border)" }} />
+              <button type="submit"
+                className="px-3 py-2 rounded-xl text-white text-sm font-medium transition-opacity hover:opacity-90"
+                style={{ background: "var(--accent)" }}>
+                {gifLoading ? "…" : "Go"}
+              </button>
+            </form>
+            {gifLoading ? (
+              <div className="flex items-center justify-center h-32 text-2xl animate-bounce">🎞</div>
+            ) : (
+              <div className="grid grid-cols-3 gap-1.5 max-h-56 overflow-y-auto">
+                {gifResults.map((gif, i) => (
+                  <button key={i} onClick={() => { setSelectedGif(gif); setTab("text"); }}
+                    className="aspect-square rounded-lg overflow-hidden transition-all"
+                    style={{ outline: "none" }}
+                    onMouseEnter={e => (e.currentTarget.style.boxShadow = "0 0 0 2px var(--accent)")}
+                    onMouseLeave={e => (e.currentTarget.style.boxShadow = "")}>
+                    <img src={gif.url} alt={gif.title} className="w-full h-full object-cover" />
+                  </button>
+                ))}
+                {gifResults.length === 0 && !gifLoading && (
+                  <p className="col-span-3 text-center text-xs py-8" style={{ color: "var(--muted)" }}>No GIFs found. Try a different search.</p>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* PHOTO TAB */}
+        {tab === "photo" && (
+          <>
+            {!photoData ? (
+              <label
+                onDragOver={e => { e.preventDefault(); setIsDragging(true); }}
+                onDragLeave={() => setIsDragging(false)}
+                onDrop={async e => { e.preventDefault(); setIsDragging(false); const f = e.dataTransfer.files[0]; if (f) await handlePhotoFile(f); }}
+                className="flex flex-col items-center justify-center gap-2 border-2 border-dashed rounded-xl h-32 cursor-pointer transition-colors"
+                style={{ borderColor: isDragging ? "var(--accent)" : "var(--border)", background: isDragging ? "var(--accent-light)" : "transparent" }}>
+                <span className="text-2xl">📷</span>
+                <span className="text-xs" style={{ color: "var(--muted)" }}>Drag & drop or click to choose</span>
+                <input type="file" accept="image/*" className="hidden"
+                  onChange={async e => { if (e.target.files?.[0]) await handlePhotoFile(e.target.files[0]); }} />
+              </label>
+            ) : (
+              <div className="relative">
+                <img src={photoData} alt="Preview" className="w-full rounded-xl object-cover max-h-48" />
+                <button onClick={() => setPhotoData(null)}
+                  className="absolute top-2 right-2 bg-black/50 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-black/70">
+                  ✕
+                </button>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* VOICE TAB */}
+        {tab === "voice" && (
+          <div className="flex flex-col items-center gap-3 py-2">
+            {!audioUrl ? (
+              <>
+                {recording ? (
+                  <>
+                    <div className="flex items-end gap-1 h-10">
+                      {[...Array(8)].map((_, i) => (
+                        <div key={i} className="w-1.5 rounded-full animate-pulse"
+                          style={{ height: `${20 + (i % 3) * 10}px`, animationDelay: `${i * 0.1}s`, background: "var(--accent)" }} />
+                      ))}
+                    </div>
+                    <p className="text-xs" style={{ color: "var(--muted)" }}>{recSeconds}s / 60s</p>
+                    <button onClick={stopRecording}
+                      className="px-4 py-2 bg-red-500 text-white rounded-full text-sm font-medium hover:bg-red-600 transition-colors">
+                      ⏹ Stop
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button onClick={startRecording}
+                      className="px-4 py-2 text-white rounded-full text-sm font-medium transition-opacity hover:opacity-90"
+                      style={{ background: "var(--accent)" }}>
+                      🎙 Start Recording
+                    </button>
+                    <p className="text-xs" style={{ color: "var(--muted)" }}>Max 60s</p>
+                  </>
+                )}
+              </>
+            ) : (
+              <div className="w-full space-y-2">
+                <audio controls src={audioUrl} className="w-full h-8" />
+                <div className="flex gap-2">
+                  <button onClick={() => { setAudioBlob(null); setAudioUrl(null); }}
+                    className="flex-1 py-1.5 text-xs rounded-lg"
+                    style={{ border: "1px solid var(--border)", color: "var(--muted)" }}>
+                    Re-record
+                  </button>
+                  <button onClick={() => setTab("text")}
+                    className="flex-1 py-1.5 text-xs text-white rounded-lg"
+                    style={{ background: "var(--accent)" }}>
+                    Use this ✓
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Selected GIF preview (shown on text tab) */}
+        {selectedGif && tab === "text" && (
+          <div className="relative">
+            <img src={selectedGif.url} alt={selectedGif.title} className="w-full rounded-xl max-h-32 object-cover" />
+            <button onClick={() => setSelectedGif(null)}
+              className="absolute top-1 right-1 bg-black/50 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs">
+              ✕
+            </button>
+          </div>
+        )}
+
+        {/* Value badge — optional */}
+        <div className="pt-2" style={{ borderTop: "1px solid var(--border)" }}>
+          <p className="text-xs mb-1.5" style={{ color: "var(--muted)" }}>Tag a value <span className="opacity-60">(optional)</span></p>
+          <div className="flex gap-1.5 flex-wrap">
+            {["Win Together", "Be Bold", "Move with Urgency"].map(v => (
+              <button key={v} type="button"
+                onClick={() => setValueTag(valueTag === v ? "" : v)}
+                className="px-2.5 py-1 rounded-full text-xs font-medium transition-all"
+                style={valueTag === v
+                  ? { background: "var(--accent)", color: "#fff" }
+                  : { background: "var(--accent-light)", color: "var(--accent)" }}>
+                {v}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Author + Post */}
+        <div className="space-y-2">
+          {!anonymous && <>
+            <input value={authorName} onChange={e => setAuthorName(e.target.value)}
+              placeholder="Your name (required)"
+              className="w-full text-sm rounded-xl px-3 py-2 focus:outline-none"
+              style={{ border: "1px solid var(--border)" }} />
+            <input value={authorEmail} onChange={e => setAuthorEmail(e.target.value)}
+              placeholder="Email (optional)"
+              className="w-full text-sm rounded-xl px-3 py-2 focus:outline-none"
+              style={{ border: "1px solid var(--border)" }} />
+          </>}
+          <label className="flex items-center gap-2 text-xs cursor-pointer" style={{ color: "var(--muted)" }}>
+            <input type="checkbox" checked={anonymous} onChange={e => setAnonymous(e.target.checked)} className="rounded" />
+            Post anonymously
+          </label>
+          <button onClick={submitPost} disabled={posting || !authorName.trim()}
+            className="w-full py-2.5 text-white rounded-xl text-sm font-semibold transition-opacity hover:opacity-90 disabled:opacity-50"
+            style={{ background: "var(--accent)" }}>
+            {posting ? "Posting…" : "Post 🎉"}
+          </button>
+        </div>
+      </div>
+    </>
+  );
+
   return (
     <div className="min-h-screen" style={{ background: "var(--bg)" }}>
       {/* Sub-nav */}
-      <div className="sticky top-0 z-30 bg-white backdrop-blur px-4 py-3 flex items-center gap-3"
-        style={{ borderBottom: "1px solid var(--border)" }}>
+      <div className="sticky top-0 z-30 backdrop-blur px-4 py-3 flex items-center gap-3"
+        style={{ background: "var(--card)", borderBottom: "1px solid var(--border)" }}>
         <button onClick={() => router.push("/")} className="text-lg mr-1" style={{ color: "var(--muted)" }}>←</button>
         <div className="min-w-0 flex-1">
           <p className="font-bold truncate text-sm" style={{ color: "var(--text)" }}>{board.title}</p>
           <p className="text-xs" style={{ color: "var(--muted)" }}>For {board.honoree_name}</p>
         </div>
+        <button
+          onClick={() => { navigator.clipboard.writeText(shareUrl); showToast("Link copied"); }}
+          className="px-3 py-1.5 rounded-full text-xs font-medium flex-shrink-0 transition-colors"
+          style={{ border: "1px solid var(--border)", color: "var(--muted)" }}>
+          🔗 Share
+        </button>
         <div className="flex gap-1 flex-shrink-0">
           {views.map(v => (
             <button key={v.key}
@@ -780,265 +1053,70 @@ export default function BoardPage() {
               </div>
             )}
 
-            {/* Highlights grid (default) */}
+            {/* Highlights masonry (default) */}
             {!showAllPosts && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="columns-1 sm:columns-2 xl:columns-3 gap-4">
                 {posts.filter(p => !p.is_manager_note).map(p => (
-                  <CheerSnippet key={p.id} post={p} onUpdate={fetchBoard} />
+                  <div key={p.id} className="break-inside-avoid mb-4">
+                    <CheerSnippet post={p} onUpdate={fetchBoard} />
+                  </div>
                 ))}
               </div>
             )}
 
             {/* Full masonry wall */}
             {showAllPosts && (
-              <div className="columns-2 md:columns-3 gap-4">
-                {posts.filter(p => !p.is_manager_note).map(p => <PostTile key={p.id} post={p} onUpdate={fetchBoard} />)}
+              <div className="columns-1 sm:columns-2 xl:columns-3 gap-4">
+                {posts.filter(p => !p.is_manager_note).map(p => (
+                  <div key={p.id} className="break-inside-avoid mb-4">
+                    <PostTile post={p} onUpdate={fetchBoard} />
+                  </div>
+                ))}
               </div>
             )}
           </div>
 
-          {/* Composer sidebar */}
-          <div className="w-80 flex-shrink-0">
-            <div className="bg-white rounded-2xl shadow-sm overflow-hidden sticky top-20" style={{ border: "1px solid var(--border)" }}>
+          {/* Composer sidebar (desktop) */}
+          <div className="hidden md:block w-80 flex-shrink-0">
+            <div className="rounded-2xl shadow-sm overflow-hidden sticky top-20" style={{ background: "var(--card)", border: "1px solid var(--border)" }}>
               <div className="p-4" style={{ borderBottom: "1px solid var(--border)" }}>
                 <p className="font-semibold text-sm" style={{ color: "var(--text)" }}>Leave a cheer</p>
               </div>
+              {composerContent}
+            </div>
+          </div>
 
-              {/* Tabs */}
-              <div className="flex" style={{ borderBottom: "1px solid var(--border)" }}>
-                {(["text","gif","photo","voice"] as const).map(t => (
-                  <button key={t} onClick={() => setTab(t)}
-                    className="flex-1 py-2.5 text-base transition-colors"
-                    style={tab === t
-                      ? { borderBottom: "2px solid var(--accent)", background: "var(--accent-light)" }
-                      : { color: "var(--muted)" }}>
-                    {t === "text" ? "💬" : t === "gif" ? "🎞" : t === "photo" ? "📷" : "🎙"}
-                  </button>
-                ))}
-              </div>
+          {/* Mobile: floating action button */}
+          {!showComposerSheet && (
+            <button onClick={() => setShowComposerSheet(true)}
+              className="md:hidden fixed bottom-6 right-5 z-40 px-5 py-3.5 rounded-full text-sm font-semibold text-white shadow-lg transition-opacity hover:opacity-90"
+              style={{ background: "var(--accent)" }}>
+              ＋ Add cheer
+            </button>
+          )}
 
-              <div className="p-4 space-y-3">
-                {/* TEXT TAB */}
-                {tab === "text" && (
-                  <>
-                    <div className="flex flex-wrap gap-1.5">
-                      {autoMsgs.map(m => (
-                        <button key={m.label} onClick={() => setMessage(m.text)}
-                          className="px-2 py-1 rounded-full text-xs transition-colors"
-                          style={{ background: "var(--accent-light)", color: "var(--accent)" }}>
-                          {m.label}
-                        </button>
-                      ))}
-                    </div>
-                    {/* AI Message Generator */}
-                    <div className="rounded-xl p-3 space-y-2" style={{ background: "var(--accent-light)" }}>
-                      <p className="text-xs font-medium" style={{ color: "var(--accent)" }}>✨ AI-generated cheer</p>
-                      <input value={aiContext} onChange={e => setAiContext(e.target.value)}
-                        placeholder="Optional: add context (e.g. 'worked on the sensor team')"
-                        className="w-full text-xs rounded-lg px-2.5 py-1.5 focus:outline-none bg-white"
-                        style={{ border: "1px solid var(--border)" }} />
-                      <button disabled={aiLoading}
-                        onClick={async () => {
-                          setAiLoading(true);
-                          const res = await fetch(`/api/boards/${id}/ai-message`, {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ milestone_type: board?.type, honoree_name: board?.honoree_name, sender_context: aiContext }),
-                          });
-                          const d = await res.json();
-                          if (d.message) setMessage(d.message);
-                          setAiLoading(false);
-                        }}
-                        className="w-full py-1.5 rounded-lg text-xs font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
-                        style={{ background: "var(--accent)" }}>
-                        {aiLoading ? "Generating…" : "Generate a cheer"}
-                      </button>
-                    </div>
-                    <textarea value={message} onChange={e => setMessage(e.target.value)}
-                      placeholder="Write your message…" rows={3}
-                      className="w-full text-sm rounded-xl px-3 py-2 resize-none focus:outline-none"
-                      style={{ border: "1px solid var(--border)", outline: "none" }}
-                      onFocus={e => e.target.style.boxShadow = "0 0 0 2px var(--accent)"}
-                      onBlur={e => e.target.style.boxShadow = ""} />
-                    <div className="flex flex-wrap gap-1">
-                      {REACTIONS.map(r => (
-                        <button key={r} onClick={() => setReaction(reaction === r ? "" : r)}
-                          className="text-lg p-1 rounded-lg transition-colors"
-                          style={reaction === r ? { background: "var(--accent-light)" } : {}}>
-                          {r}
-                        </button>
-                      ))}
-                    </div>
-                  </>
-                )}
-
-                {/* GIF TAB */}
-                {tab === "gif" && (
-                  <div className="space-y-2">
-                    <form onSubmit={e => { e.preventDefault(); searchGifs(gifQuery); }} className="flex gap-1.5">
-                      <input
-                        value={gifQuery}
-                        onChange={e => setGifQuery(e.target.value)}
-                        placeholder="Search GIFs…"
-                        className="flex-1 text-sm rounded-xl px-3 py-2 focus:outline-none"
-                        style={{ border: "1px solid var(--border)" }} />
-                      <button type="submit"
-                        className="px-3 py-2 rounded-xl text-white text-sm font-medium transition-opacity hover:opacity-90"
-                        style={{ background: "var(--accent)" }}>
-                        {gifLoading ? "…" : "Go"}
-                      </button>
-                    </form>
-                    {gifLoading ? (
-                      <div className="flex items-center justify-center h-32 text-2xl animate-bounce">🎞</div>
-                    ) : (
-                      <div className="grid grid-cols-3 gap-1.5 max-h-56 overflow-y-auto">
-                        {gifResults.map((gif, i) => (
-                          <button key={i} onClick={() => { setSelectedGif(gif); setTab("text"); }}
-                            className="aspect-square rounded-lg overflow-hidden transition-all"
-                            style={{ outline: "none" }}
-                            onMouseEnter={e => (e.currentTarget.style.boxShadow = "0 0 0 2px var(--accent)")}
-                            onMouseLeave={e => (e.currentTarget.style.boxShadow = "")}>
-                            <img src={gif.url} alt={gif.title} className="w-full h-full object-cover" />
-                          </button>
-                        ))}
-                        {gifResults.length === 0 && !gifLoading && (
-                          <p className="col-span-3 text-center text-xs py-8" style={{ color: "var(--muted)" }}>No GIFs found. Try a different search.</p>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* PHOTO TAB */}
-                {tab === "photo" && (
-                  <>
-                    {!photoData ? (
-                      <label
-                        onDragOver={e => { e.preventDefault(); setIsDragging(true); }}
-                        onDragLeave={() => setIsDragging(false)}
-                        onDrop={async e => { e.preventDefault(); setIsDragging(false); const f = e.dataTransfer.files[0]; if (f) await handlePhotoFile(f); }}
-                        className="flex flex-col items-center justify-center gap-2 border-2 border-dashed rounded-xl h-32 cursor-pointer transition-colors"
-                        style={{ borderColor: isDragging ? "var(--accent)" : "var(--border)", background: isDragging ? "var(--accent-light)" : "transparent" }}>
-                        <span className="text-2xl">📷</span>
-                        <span className="text-xs text-gray-400">Drag & drop or click to choose</span>
-                        <input type="file" accept="image/*" className="hidden"
-                          onChange={async e => { if (e.target.files?.[0]) await handlePhotoFile(e.target.files[0]); }} />
-                      </label>
-                    ) : (
-                      <div className="relative">
-                        <img src={photoData} alt="Preview" className="w-full rounded-xl object-cover max-h-48" />
-                        <button onClick={() => setPhotoData(null)}
-                          className="absolute top-2 right-2 bg-black/50 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-black/70">
-                          ✕
-                        </button>
-                      </div>
-                    )}
-                  </>
-                )}
-
-                {/* VOICE TAB */}
-                {tab === "voice" && (
-                  <div className="flex flex-col items-center gap-3 py-2">
-                    {!audioUrl ? (
-                      <>
-                        {recording ? (
-                          <>
-                            <div className="flex items-end gap-1 h-10">
-                              {[...Array(8)].map((_, i) => (
-                                <div key={i} className="w-1.5 rounded-full animate-pulse"
-                                  style={{ height: `${20 + (i % 3) * 10}px`, animationDelay: `${i * 0.1}s`, background: "var(--accent)" }} />
-                              ))}
-                            </div>
-                            <p className="text-xs" style={{ color: "var(--muted)" }}>{recSeconds}s / 60s</p>
-                            <button onClick={stopRecording}
-                              className="px-4 py-2 bg-red-500 text-white rounded-full text-sm font-medium hover:bg-red-600 transition-colors">
-                              ⏹ Stop
-                            </button>
-                          </>
-                        ) : (
-                          <>
-                            <button onClick={startRecording}
-                              className="px-4 py-2 text-white rounded-full text-sm font-medium transition-opacity hover:opacity-90"
-                              style={{ background: "var(--accent)" }}>
-                              🎙 Start Recording
-                            </button>
-                            <p className="text-xs" style={{ color: "var(--muted)" }}>Max 60s</p>
-                          </>
-                        )}
-                      </>
-                    ) : (
-                      <div className="w-full space-y-2">
-                        <audio controls src={audioUrl} className="w-full h-8" />
-                        <div className="flex gap-2">
-                          <button onClick={() => { setAudioBlob(null); setAudioUrl(null); }}
-                            className="flex-1 py-1.5 text-xs rounded-lg"
-                            style={{ border: "1px solid var(--border)", color: "var(--muted)" }}>
-                            Re-record
-                          </button>
-                          <button onClick={() => setTab("text")}
-                            className="flex-1 py-1.5 text-xs text-white rounded-lg"
-                            style={{ background: "var(--accent)" }}>
-                            Use this ✓
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Selected GIF preview (shown on text tab) */}
-                {selectedGif && tab === "text" && (
-                  <div className="relative">
-                    <img src={selectedGif.url} alt={selectedGif.title} className="w-full rounded-xl max-h-32 object-cover" />
-                    <button onClick={() => setSelectedGif(null)}
-                      className="absolute top-1 right-1 bg-black/50 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs">
+          {/* Mobile: composer bottom sheet */}
+          {showComposerSheet && (
+            <div className="md:hidden fixed inset-0 z-50">
+              <div className="absolute inset-0" style={{ background: "rgba(0,0,0,0.4)" }}
+                onClick={() => setShowComposerSheet(false)} />
+              <div className="fixed inset-x-0 bottom-0 z-50 rounded-t-3xl max-h-[85vh] overflow-y-auto shadow-xl"
+                style={{ background: "var(--card)", borderTop: "1px solid var(--border)" }}>
+                <div className="sticky top-0 pt-3 pb-2 px-4" style={{ background: "var(--card)" }}>
+                  <div className="mx-auto w-10 h-1 rounded-full mb-3" style={{ background: "var(--border)" }} />
+                  <div className="flex items-center justify-between">
+                    <p className="font-semibold text-sm" style={{ color: "var(--text)" }}>Leave a cheer</p>
+                    <button onClick={() => setShowComposerSheet(false)}
+                      className="w-7 h-7 rounded-full flex items-center justify-center text-sm"
+                      style={{ background: "var(--accent-light)", color: "var(--muted)" }}>
                       ✕
                     </button>
                   </div>
-                )}
-
-                {/* Value badge — optional */}
-                <div className="pt-2" style={{ borderTop: "1px solid var(--border)" }}>
-                  <p className="text-xs mb-1.5" style={{ color: "var(--muted)" }}>Tag a value <span className="opacity-60">(optional)</span></p>
-                  <div className="flex gap-1.5 flex-wrap">
-                    {["Win Together", "Be Bold", "Move with Urgency"].map(v => (
-                      <button key={v} type="button"
-                        onClick={() => setValueTag(valueTag === v ? "" : v)}
-                        className="px-2.5 py-1 rounded-full text-xs font-medium transition-all"
-                        style={valueTag === v
-                          ? { background: "var(--accent)", color: "#fff" }
-                          : { background: "var(--accent-light)", color: "var(--accent)" }}>
-                        {v}
-                      </button>
-                    ))}
-                  </div>
                 </div>
-
-                {/* Author + Post */}
-                <div className="space-y-2">
-                  {!anonymous && <>
-                    <input value={authorName} onChange={e => setAuthorName(e.target.value)}
-                      placeholder="Your name (required)"
-                      className="w-full text-sm rounded-xl px-3 py-2 focus:outline-none"
-                      style={{ border: "1px solid var(--border)" }} />
-                    <input value={authorEmail} onChange={e => setAuthorEmail(e.target.value)}
-                      placeholder="Email (optional)"
-                      className="w-full text-sm rounded-xl px-3 py-2 focus:outline-none"
-                      style={{ border: "1px solid var(--border)" }} />
-                  </>}
-                  <label className="flex items-center gap-2 text-xs cursor-pointer" style={{ color: "var(--muted)" }}>
-                    <input type="checkbox" checked={anonymous} onChange={e => setAnonymous(e.target.checked)} className="rounded" />
-                    Post anonymously
-                  </label>
-                  <button onClick={submitPost} disabled={posting || !authorName.trim()}
-                    className="w-full py-2.5 text-white rounded-xl text-sm font-semibold transition-opacity hover:opacity-90 disabled:opacity-50"
-                    style={{ background: "var(--accent)" }}>
-                    {posting ? "Posting…" : "Post 🎉"}
-                  </button>
-                </div>
+                {composerContent}
               </div>
             </div>
-          </div>
+          )}
         </div>
       )}
 
@@ -1048,7 +1126,7 @@ export default function BoardPage() {
           <h2 className="text-xl font-bold" style={{ color: "var(--text)" }}>👥 Manager View</h2>
 
           {/* Manager note */}
-          <div className="bg-white rounded-2xl p-5 shadow-sm" style={{ border: "1px solid var(--border)" }}>
+          <div className="rounded-2xl p-5 shadow-sm" style={{ background: "var(--card)", border: "1px solid var(--border)" }}>
             <p className="font-semibold mb-3" style={{ color: "var(--text)" }}>📌 Manager Note</p>
             {managerNotePost ? (
               <div className="rounded-xl p-4 text-white text-sm" style={{ background: "var(--accent)" }}>
@@ -1078,7 +1156,7 @@ export default function BoardPage() {
           </div>
 
           {/* Team participation checklist */}
-          <div className="bg-white rounded-2xl p-5 shadow-sm" style={{ border: "1px solid var(--border)" }}>
+          <div className="rounded-2xl p-5 shadow-sm" style={{ background: "var(--card)", border: "1px solid var(--border)" }}>
             <p className="font-semibold mb-3" style={{ color: "var(--text)" }}>✅ Team Participation</p>
             <div className="space-y-2">
               {EXPECTED_TEAM.map(name => {
@@ -1097,7 +1175,7 @@ export default function BoardPage() {
           </div>
 
           {/* AI Recap */}
-          <div className="bg-white rounded-2xl p-5 shadow-sm" style={{ border: "1px solid var(--border)" }}>
+          <div className="rounded-2xl p-5 shadow-sm" style={{ background: "var(--card)", border: "1px solid var(--border)" }}>
             <p className="font-semibold mb-3" style={{ color: "var(--text)" }}>✨ AI Highlights Recap</p>
             {recapText ? (
               <div className="rounded-xl p-4 text-sm leading-relaxed" style={{ background: "var(--accent-light)", color: "var(--text)" }}>
@@ -1142,7 +1220,7 @@ export default function BoardPage() {
               onClick={async () => {
                 const res = await fetch(`/api/boards/${id}/slack`, { method: "POST" });
                 const d = await res.json();
-                alert(d.stub ? `Slack not configured: ${d.message}` : d.sent ? "Posted to Slack!" : `Failed: ${d.error}`);
+                showToast(d.stub ? `Slack not configured: ${d.message}` : d.sent ? "Posted to Slack!" : `Failed: ${d.error}`);
               }}
               className="py-3 rounded-xl text-sm font-medium transition-colors"
               style={{ border: "1px solid var(--border)", color: "var(--text)", background: "var(--bg)" }}>
@@ -1152,7 +1230,7 @@ export default function BoardPage() {
               onClick={async () => {
                 const res = await fetch(`/api/boards/${id}/notify`, { method: "POST" });
                 const d = await res.json();
-                alert(d.stub ? `Email stub — would send to honoree.\n\nSubject: ${d.preview?.subject}` : d.sent ? "Email sent!" : `Failed: ${d.error}`);
+                showToast(d.stub ? `Email stub, would send: ${d.preview?.subject ?? "notification"}` : d.sent ? "Email sent!" : `Failed: ${d.error}`);
               }}
               className="py-3 rounded-xl text-sm font-medium transition-colors"
               style={{ border: "1px solid var(--border)", color: "var(--text)", background: "var(--bg)" }}>
@@ -1160,7 +1238,7 @@ export default function BoardPage() {
             </button>
           </div>
           <button
-            onClick={() => alert("Workday export coming soon! This would push approved time-off to Workday.")}
+            onClick={() => showToast("Workday export coming soon")}
             className="w-full py-3 rounded-2xl text-sm font-medium transition-colors"
             style={{ border: "2px dashed var(--border)", color: "var(--accent)" }}>
             📤 Export to Workday (stub)
@@ -1191,7 +1269,7 @@ export default function BoardPage() {
               </div>
             </div>
             <button
-              onClick={() => { navigator.clipboard.writeText(shareUrl); alert("Link copied!"); }}
+              onClick={() => { navigator.clipboard.writeText(shareUrl); showToast("Link copied"); }}
               className="px-5 py-2 bg-white/20 hover:bg-white/30 rounded-full text-sm font-medium transition-colors">
               🔗 Share Board
             </button>
@@ -1199,7 +1277,7 @@ export default function BoardPage() {
 
           {/* Badges showcase */}
           {badges.length > 0 && (
-            <div className="bg-white rounded-2xl p-5 shadow-sm" style={{ border: "1px solid var(--border)" }}>
+            <div className="rounded-2xl p-5 shadow-sm" style={{ background: "var(--card)", border: "1px solid var(--border)" }}>
               <p className="font-semibold mb-3" style={{ color: "var(--text)" }}>🏅 Your Badges</p>
               <div className="flex flex-wrap gap-2">
                 {badges.map(b => {
@@ -1295,6 +1373,14 @@ export default function BoardPage() {
               </div>
             </form>
           </div>
+        </div>
+      )}
+
+      {/* Toast */}
+      {toast && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[60] px-5 py-3 rounded-xl text-sm font-medium text-white shadow-lg"
+          style={{ background: "var(--text)" }}>
+          {toast}
         </div>
       )}
     </div>
