@@ -11,7 +11,7 @@ export async function GET(req: NextRequest) {
     SELECT b.*,
       (SELECT COUNT(*) FROM board_posts WHERE board_id = b.id) as post_count
     FROM boards b
-    WHERE strftime('%Y', COALESCE(b.milestone_date, b.created_at)) = ?
+    WHERE substr(COALESCE(b.milestone_date, b.created_at), 1, 4) = ?
     ORDER BY COALESCE(b.milestone_date, b.created_at) ASC
   `, [String(year)]) as Array<{
     id: string;

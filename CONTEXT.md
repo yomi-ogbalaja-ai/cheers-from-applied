@@ -4,6 +4,14 @@
 
 ---
 
+## 2026-07-06 (later) — `/review` (Year in Review) fixed: SQLite-only SQL survived the Postgres migration
+
+`/api/review` was throwing `error: function strftime(unknown, text) does not exist` on every request — `strftime('%Y', ...)` is SQLite-only; Postgres has no such function. This is a different bug class than the "feature silently missing" ones earlier today: the SQL itself was written against SQLite/libsql semantics and never updated when the persistence layer moved to Postgres (see the incident/fix earlier this same day). Fixed by swapping to `substr(col, 1, 4) = ?`, which works identically on both backends (SQLite and Postgres both support `substr`, `strftime` is SQLite-only) — consistent with `dbGet`/`dbAll`/`dbRun` being shared across both.
+
+Audited the rest of `src/app/api` for the same pattern (`strftime`, `julianday`, `datetime(`, `INSERT OR IGNORE/REPLACE`, `GROUP_CONCAT`, `last_insert_rowid`, bare-integer booleans in `WHERE`) — nothing else found. If another page/route breaks with a Postgres error code `42883` ("function ... does not exist") or `42601` after this, it's almost certainly the same class of bug: a SQLite-specific construct that was never ported. Check `code` on the thrown Postgres error first — it's faster than reading the stack trace.
+
+---
+
 ## 2026-07-06 — GIF picker restored, Harris board data recreated, repo cleanup
 
 ### GIF picker
