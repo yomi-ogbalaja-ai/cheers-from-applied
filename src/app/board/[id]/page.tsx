@@ -552,6 +552,10 @@ export default function BoardPage() {
   // Manager view state
   const [managerNote, setManagerNote] = useState("");
   const [savingNote, setSavingNote] = useState(false);
+  const [editingDetails, setEditingDetails] = useState(false);
+  const [editTitle, setEditTitle] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const [savingDetails, setSavingDetails] = useState(false);
 
   // Badge modal state
   const [badgeModal, setBadgeModal] = useState(false);
@@ -701,6 +705,20 @@ export default function BoardPage() {
     });
     setManagerNote("");
     setSavingNote(false);
+    await fetchBoard();
+  }
+
+  // ── Board title/description ────────────────────────────────────────────────
+  async function saveDetails() {
+    if (!editTitle.trim()) return;
+    setSavingDetails(true);
+    await fetch(`/api/boards/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title: editTitle.trim(), description: editDescription.trim() }),
+    });
+    setSavingDetails(false);
+    setEditingDetails(false);
     await fetchBoard();
   }
 
@@ -1151,6 +1169,48 @@ export default function BoardPage() {
       {view === "manager" && (
         <div className="max-w-3xl mx-auto px-4 py-6 space-y-6">
           <h2 className="text-xl font-bold" style={{ color: "var(--text)" }}>👥 Manager View</h2>
+
+          {/* Board title & message — the hero banner text at the top of the board */}
+          <div className="rounded-2xl p-5 shadow-sm" style={{ background: "var(--card)", border: "1px solid var(--border)" }}>
+            <p className="font-semibold mb-3" style={{ color: "var(--text)" }}>✏️ Board Title &amp; Message</p>
+            {editingDetails ? (
+              <div className="space-y-2">
+                <input value={editTitle} onChange={e => setEditTitle(e.target.value)}
+                  placeholder="Board title" maxLength={200}
+                  className="w-full text-sm font-semibold rounded-xl px-3 py-2 focus:outline-none"
+                  style={{ border: "1px solid var(--accent)" }} />
+                <textarea value={editDescription} onChange={e => setEditDescription(e.target.value)}
+                  placeholder="Message shown under the title (optional)" rows={4} maxLength={1000}
+                  className="w-full text-sm rounded-xl px-3 py-2 resize-none focus:outline-none"
+                  style={{ border: "1px solid var(--accent)" }} />
+                <div className="flex gap-1.5">
+                  <button onClick={saveDetails} disabled={savingDetails || !editTitle.trim()}
+                    className="px-4 py-2 text-white rounded-xl text-sm font-medium disabled:opacity-50 transition-opacity hover:opacity-90"
+                    style={{ background: "var(--accent)" }}>
+                    {savingDetails ? "Saving…" : "Save"}
+                  </button>
+                  <button onClick={() => setEditingDetails(false)}
+                    className="px-4 py-2 rounded-xl text-sm font-medium"
+                    style={{ border: "1px solid var(--border)", color: "var(--muted)" }}>
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <p className="text-sm font-semibold" style={{ color: "var(--text)" }}>{board.title}</p>
+                <p className="text-sm" style={{ color: board.description ? "var(--text)" : "var(--muted)" }}>
+                  {board.description || "No message set."}
+                </p>
+                <button
+                  onClick={() => { setEditTitle(board.title); setEditDescription(board.description ?? ""); setEditingDetails(true); }}
+                  className="text-xs px-3 py-1.5 rounded-full font-medium"
+                  style={{ border: "1px solid var(--border)", color: "var(--muted)" }}>
+                  Edit
+                </button>
+              </div>
+            )}
+          </div>
 
           {/* Manager note */}
           <div className="rounded-2xl p-5 shadow-sm" style={{ background: "var(--card)", border: "1px solid var(--border)" }}>
