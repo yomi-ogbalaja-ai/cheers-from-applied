@@ -227,6 +227,8 @@ function PostTile({ post, onUpdate }: { post: Post; onUpdate?: () => Promise<voi
   const [editing, setEditing] = useState(false);
   const [editMsg, setEditMsg] = useState(post.message ?? "");
   const [saving, setSaving] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   async function saveEdit() {
     setSaving(true);
@@ -240,12 +242,44 @@ function PostTile({ post, onUpdate }: { post: Post; onUpdate?: () => Promise<voi
     await onUpdate?.();
   }
 
+  async function deletePost() {
+    setDeleting(true);
+    await fetch(`/api/boards/${post.board_id}/posts`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ postId: post.id }),
+    });
+    await onUpdate?.();
+  }
+
   const editBtn = onUpdate && !post.is_manager_note ? (
-    <button onClick={() => { setEditMsg(post.message ?? ""); setEditing(true); }}
-      className="ml-auto text-xs px-2 py-0.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-      style={{ color: "var(--muted)", border: "1px solid var(--border)" }}>
-      Edit
-    </button>
+    confirmDelete ? (
+      <div className="ml-auto flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+        <span className="text-xs" style={{ color: "var(--muted)" }}>Delete?</span>
+        <button onClick={deletePost} disabled={deleting}
+          className="text-xs px-2 py-0.5 rounded-full bg-red-500 text-white disabled:opacity-50">
+          {deleting ? "…" : "Yes"}
+        </button>
+        <button onClick={() => setConfirmDelete(false)}
+          className="text-xs px-2 py-0.5 rounded-full"
+          style={{ border: "1px solid var(--border)", color: "var(--muted)" }}>
+          No
+        </button>
+      </div>
+    ) : (
+      <div className="ml-auto flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+        <button onClick={() => { setEditMsg(post.message ?? ""); setEditing(true); }}
+          className="text-xs px-2 py-0.5 rounded-full"
+          style={{ color: "var(--muted)", border: "1px solid var(--border)" }}>
+          Edit
+        </button>
+        <button onClick={() => setConfirmDelete(true)}
+          className="text-xs px-2 py-0.5 rounded-full text-red-500"
+          style={{ border: "1px solid #fca5a5" }}>
+          Delete
+        </button>
+      </div>
+    )
   ) : null;
 
   const editBox = (
@@ -369,6 +403,8 @@ function CheerSnippet({ post, onUpdate }: { post: Post; onUpdate?: () => Promise
   const [editing, setEditing] = useState(false);
   const [editMsg, setEditMsg] = useState(post.message ?? "");
   const [saving, setSaving] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   async function saveEdit() {
     setSaving(true);
@@ -379,6 +415,16 @@ function CheerSnippet({ post, onUpdate }: { post: Post; onUpdate?: () => Promise
     });
     setSaving(false);
     setEditing(false);
+    await onUpdate?.();
+  }
+
+  async function deletePost() {
+    setDeleting(true);
+    await fetch(`/api/boards/${post.board_id}/posts`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ postId: post.id }),
+    });
     await onUpdate?.();
   }
 
@@ -399,11 +445,33 @@ function CheerSnippet({ post, onUpdate }: { post: Post; onUpdate?: () => Promise
         )}
         {post.reaction && <span className="text-base flex-shrink-0">{post.reaction}</span>}
         {onUpdate && !editing && (
-          <button onClick={() => { setEditMsg(post.message ?? ""); setEditing(true); }}
-            className="text-xs px-2 py-0.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-            style={{ color: "var(--muted)", border: "1px solid var(--border)" }}>
-            Edit
-          </button>
+          confirmDelete ? (
+            <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+              <span className="text-xs" style={{ color: "var(--muted)" }}>Delete?</span>
+              <button onClick={deletePost} disabled={deleting}
+                className="text-xs px-2 py-0.5 rounded-full bg-red-500 text-white disabled:opacity-50">
+                {deleting ? "…" : "Yes"}
+              </button>
+              <button onClick={() => setConfirmDelete(false)}
+                className="text-xs px-2 py-0.5 rounded-full"
+                style={{ border: "1px solid var(--border)", color: "var(--muted)" }}>
+                No
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+              <button onClick={() => { setEditMsg(post.message ?? ""); setEditing(true); }}
+                className="text-xs px-2 py-0.5 rounded-full"
+                style={{ color: "var(--muted)", border: "1px solid var(--border)" }}>
+                Edit
+              </button>
+              <button onClick={() => setConfirmDelete(true)}
+                className="text-xs px-2 py-0.5 rounded-full text-red-500"
+                style={{ border: "1px solid #fca5a5" }}>
+                Delete
+              </button>
+            </div>
+          )
         )}
       </div>
       {editing ? (

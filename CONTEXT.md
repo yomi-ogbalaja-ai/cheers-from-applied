@@ -4,6 +4,29 @@
 
 ---
 
+## 2026-07-06 — GIF picker restored, Harris board data recreated, repo cleanup
+
+### GIF picker
+The live composer's GIF tab used to be a Tenor-search box (`19d7459`), but without `TENOR_API_KEY` set (it never was — undocumented anywhere) it silently always showed the same 8 static fallback GIFs regardless of search query. Replaced with the paste-a-Giphy-link picker that used to exist on the other, now-abandoned branch (`2089d95`) — ported forward (not merged wholesale, see below), not re-fetched from that branch. Paste any `giphy.com/gifs/...` or `media.giphy.com/media/...` link, `giphyToMediaUrl()` extracts the ID and resolves it to a direct, embeddable URL with a live preview. No API key needed. `/api/gif-search` and the dead `GIF_SETS` preset-grid constant it had already superseded were removed.
+
+Also added text labels under each composer tab's emoji (Message / Add Gif / Add photos / Voice) — icon-only wasn't clear enough.
+
+### Delete post restored
+Same pattern as the GIF picker: "Add delete post functionality" (`6b49ad8`) was another feature that only ever existed on the abandoned branch and never made it into what's deployed — live had an Edit button on posts but no Delete. Ported forward: `DELETE /api/boards/[id]/posts` (takes `{ postId }`, scoped to the board), and Edit/Delete buttons with an inline "Delete? Yes / No" confirm on hover, on both `PostTile` and `CheerSnippet`.
+
+**Worth noting for whoever picks this up next:** two features independently vanished the same way (present on the old branch, silently absent from what's live) because that branch was never merged and nobody had a full inventory of what it contained. Checked the rest of that branch's commit log (`git log cb3edcc`, still reachable by SHA even though no branch points at it anymore) for anything else in the same situation, and found one more: `1e72c0c` replaced the honoree-initials avatar with the Applied logo (`public/applied-logo.png`) on the public share page (`/c/[token]`) — live still showed initials. Ported that too. The rest of that branch's commits (Postgres persistence, Tenor-search GIF picker, a README update) are superseded by what's already in `origin/main`, not missing features.
+
+### Harris/wedding board recreated
+The board recovered via browser-tab transcription + original posters' own copies (see 2026-07-02 entry, `recovery/board-harris-wedding.json`) was manually re-inserted directly into production Postgres (17 posts, 2 badges, 1 photo, 2 GIFs — the GIF links converted through the same `giphyToMediaUrl()` logic to match how they were actually originally posted). Board id `b0b68621-1404-487e-8121-dadcf123d7e9`. This is a reconstruction, not a restore — exact post times are best-effort (only day-level dates survived the recovery), and it's disclosed as such in the board's own `description` field. The actual point-in-time recovery from `#eng-apps-platform-v2` (see below) would supersede this if it happens.
+
+### Repo/branch cleanup
+Local `main` on this machine had drifted to a stale, never-pushed pointer at the old abandoned Postgres branch (`cb3edcc`) while all actual work landed on `origin/main` from a detached HEAD. Confirmed via `git ls-remote` that GitHub's `main` was never actually forked — it's the single source of truth and already had every fix from this session. Reset local `main` to match `origin/main` and checked it out properly (no more detached HEAD on this machine). The old branch's commits are no longer under any branch name (still recoverable via reflog for a while) — deliberately not merged wholesale, since it would have reintroduced the already-replaced Postgres implementation and produced heavy conflicts against files both branches independently rewrote. Anyone cloning fresh from `origin/main` gets the correct, current state.
+
+### Still outstanding
+- `#eng-apps-platform-v2` still hasn't been contacted for the point-in-time recovery of any boards beyond Harris's (see 2026-07-02 entry) — that data, if it existed, is still only recoverable through them.
+
+---
+
 ## 2026-07-02 — Incident: production board data lost, root cause + partial recovery
 
 ### What happened (confirmed via git history + GCP logs, not speculation)

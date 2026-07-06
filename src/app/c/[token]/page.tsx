@@ -98,9 +98,9 @@ export default function SharedBoardPage() {
       <div className="w-full px-6 py-12 flex flex-col items-center gap-4 text-white text-center"
         style={{ background: `linear-gradient(135deg, ${board.honoree_avatar_color}cc 0%, ${board.honoree_avatar_color} 100%)` }}>
         <p className="text-5xl">{typeEmoji}</p>
-        <div className="w-20 h-20 rounded-full flex items-center justify-center text-2xl font-bold text-white shadow-lg"
-          style={{ background: "rgba(255,255,255,0.25)", border: "3px solid rgba(255,255,255,0.6)" }}>
-          {initials(board.honoree_name)}
+        <div className="w-20 h-20 rounded-full overflow-hidden shadow-lg flex items-center justify-center bg-white"
+          style={{ border: "3px solid rgba(255,255,255,0.6)" }}>
+          <img src="/applied-logo.png" alt="Applied" className="w-full h-full object-cover" />
         </div>
         <h1 className="text-3xl font-extrabold drop-shadow">{board.title}</h1>
         {board.description && (

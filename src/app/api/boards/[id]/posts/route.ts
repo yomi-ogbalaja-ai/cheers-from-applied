@@ -148,3 +148,23 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     return serverError();
   }
 }
+
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    const { id } = await params;
+    const body = await parseJson(req);
+    if (!body) return badRequest("Invalid JSON body");
+
+    const postId = str(body.postId, 100);
+    if (!postId) return badRequest("postId required");
+
+    const post = await dbGet("SELECT id FROM board_posts WHERE id = ? AND board_id = ?", [postId, id]);
+    if (!post) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+    await dbRun("DELETE FROM board_posts WHERE id = ? AND board_id = ?", [postId, id]);
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    console.error("DELETE /api/boards/[id]/posts failed:", err);
+    return serverError();
+  }
+}
