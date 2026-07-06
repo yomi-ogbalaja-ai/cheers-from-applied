@@ -31,72 +31,6 @@ const TYPE_EMOJI: Record<string, string> = {
   promotion: "🚀", get_well: "💐", new_hire: "👋", personal_achievement: "🌟",
 };
 
-const GIF_SETS: Record<string, string[]> = {
-  birthday: [
-    "https://media.giphy.com/media/g5R9dok94mrIvplmZd/giphy.gif",
-    "https://media.giphy.com/media/26tOZ42Mg6pbTUPHW/giphy.gif",
-    "https://media.giphy.com/media/artj92V8o75VPL7AeQ/giphy.gif",
-    "https://media.giphy.com/media/3ohs4wE4DqXw84xAMo/giphy.gif",
-    "https://media.giphy.com/media/l3q2LH45XElELRzRm/giphy.gif",
-    "https://media.giphy.com/media/5P0ddDiKzMwIKQ7Bmq/giphy.gif",
-  ],
-  wedding: [
-    "https://media.giphy.com/media/l0MYt5jPR6QX5pnqM/giphy.gif",
-    "https://media.giphy.com/media/xT0GqtpF1NWd9VbstO/giphy.gif",
-    "https://media.giphy.com/media/l3q2zbskZp2j8wniE/giphy.gif",
-    "https://media.giphy.com/media/26uf9QPzzlKPvQG5y/giphy.gif",
-    "https://media.giphy.com/media/3o7abKhOpu0NwenH3O/giphy.gif",
-    "https://media.giphy.com/media/26BRrSvJeNeAxa4La/giphy.gif",
-  ],
-  new_baby: [
-    "https://media.giphy.com/media/26xBI73gWquCBBCDe/giphy.gif",
-    "https://media.giphy.com/media/3oEdva9BUHPIs2SkGk/giphy.gif",
-    "https://media.giphy.com/media/l0MYEqEzwMWFCg8rm/giphy.gif",
-    "https://media.giphy.com/media/3o7abBP0nMjrdIgSD2/giphy.gif",
-    "https://media.giphy.com/media/26ufp9EIXL5RLKJK8/giphy.gif",
-    "https://media.giphy.com/media/xT9IgG50Lg7rusUxVm/giphy.gif",
-  ],
-  work_anniversary: [
-    "https://media.giphy.com/media/3oEdvd7Fz3PzN4fcHK/giphy.gif",
-    "https://media.giphy.com/media/26ufdipQqU2lhNA4g/giphy.gif",
-    "https://media.giphy.com/media/3oKIPf3C7HqqYBVcCk/giphy.gif",
-    "https://media.giphy.com/media/l0HlBO7eyXzSZkJri/giphy.gif",
-    "https://media.giphy.com/media/3o6Zt481isNVuQI1l6/giphy.gif",
-    "https://media.giphy.com/media/26BRBKqUiq586bRVm/giphy.gif",
-  ],
-  promotion: [
-    "https://media.giphy.com/media/3oz8xAFtqoOUUrsh7W/giphy.gif",
-    "https://media.giphy.com/media/26tOZ42Mg6pbTUPHW/giphy.gif",
-    "https://media.giphy.com/media/3o7abKhOpu0NwenH3O/giphy.gif",
-    "https://media.giphy.com/media/l0HlBO7eyXzSZkJri/giphy.gif",
-    "https://media.giphy.com/media/xT9IgG50Lg7rusUxVm/giphy.gif",
-    "https://media.giphy.com/media/26BRrSvJeNeAxa4La/giphy.gif",
-  ],
-  get_well: [
-    "https://media.giphy.com/media/l0MYt5jPR6QX5pnqM/giphy.gif",
-    "https://media.giphy.com/media/3ohs4wE4DqXw84xAMo/giphy.gif",
-    "https://media.giphy.com/media/5P0ddDiKzMwIKQ7Bmq/giphy.gif",
-    "https://media.giphy.com/media/xT0GqtpF1NWd9VbstO/giphy.gif",
-    "https://media.giphy.com/media/3oEdva9BUHPIs2SkGk/giphy.gif",
-    "https://media.giphy.com/media/l0MYEqEzwMWFCg8rm/giphy.gif",
-  ],
-  new_hire: [
-    "https://media.giphy.com/media/26tOZ42Mg6pbTUPHW/giphy.gif",
-    "https://media.giphy.com/media/artj92V8o75VPL7AeQ/giphy.gif",
-    "https://media.giphy.com/media/3oKIPf3C7HqqYBVcCk/giphy.gif",
-    "https://media.giphy.com/media/26ufdipQqU2lhNA4g/giphy.gif",
-    "https://media.giphy.com/media/3oEdvd7Fz3PzN4fcHK/giphy.gif",
-    "https://media.giphy.com/media/xT9IgG50Lg7rusUxVm/giphy.gif",
-  ],
-  personal_achievement: [
-    "https://media.giphy.com/media/3oz8xAFtqoOUUrsh7W/giphy.gif",
-    "https://media.giphy.com/media/26BRBKqUiq586bRVm/giphy.gif",
-    "https://media.giphy.com/media/3o6Zt481isNVuQI1l6/giphy.gif",
-    "https://media.giphy.com/media/l3q2zbskZp2j8wniE/giphy.gif",
-    "https://media.giphy.com/media/26uf9QPzzlKPvQG5y/giphy.gif",
-    "https://media.giphy.com/media/3o7abBP0nMjrdIgSD2/giphy.gif",
-  ],
-};
 
 const AUTO_MESSAGES: Record<string, { label: string; text: string }[]> = {
   birthday: [
@@ -219,6 +153,16 @@ function Avatar({ name, color, size = 8 }: { name: string; color: string; size?:
 
 function fmtDate(s: string) {
   return new Date(s).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
+// Pasting any giphy.com link (or a bare ID) resolves to a direct, embeddable media URL.
+// No API key needed — this is why it replaced the earlier Tenor-search GIF tab.
+function giphyToMediaUrl(input: string): string | null {
+  if (/media\.giphy\.com\/media\/.+\.(gif|webp)/i.test(input)) return input;
+  const m = input.match(/giphy\.com\/gifs\/(?:[\w-]+-)?([a-zA-Z0-9]+)(?:\?|$|\/)/);
+  if (m) return `https://media.giphy.com/media/${m[1]}/giphy.gif`;
+  if (/^[a-zA-Z0-9]{8,30}$/.test(input)) return `https://media.giphy.com/media/${input}/giphy.gif`;
+  return null;
 }
 
 function timeAgo(dateStr: string) {
@@ -523,9 +467,7 @@ export default function BoardPage() {
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [recording, setRecording] = useState(false);
   const [recSeconds, setRecSeconds] = useState(0);
-  const [gifQuery, setGifQuery] = useState("celebration");
-  const [gifResults, setGifResults] = useState<{url: string; title: string}[]>([]);
-  const [gifLoading, setGifLoading] = useState(false);
+  const [gifLink, setGifLink] = useState("");
   const [authorName, setAuthorName] = useState("");
   const [authorEmail, setAuthorEmail] = useState("");
   const [valueTag, setValueTag] = useState("");
@@ -548,17 +490,6 @@ export default function BoardPage() {
   const [badgeForm, setBadgeForm] = useState({ person_name: "", person_email: "", badge_type: "team_player", reason: "" });
   const [badgeLoading, setBadgeLoading] = useState(false);
 
-  async function searchGifs(q: string) {
-    setGifLoading(true);
-    try {
-      const res = await fetch(`/api/gif-search?q=${encodeURIComponent(q)}`);
-      const data = await res.json();
-      setGifResults(data.gifs ?? []);
-    } finally {
-      setGifLoading(false);
-    }
-  }
-
   const fetchBoard = useCallback(async () => {
     setLoadError(false);
     try {
@@ -580,12 +511,6 @@ export default function BoardPage() {
     fetchBoard();
   }, [fetchBoard]);
 
-  useEffect(() => {
-    if (tab === "gif" && gifResults.length === 0 && !gifLoading) {
-      searchGifs(gifQuery);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tab]);
 
   useEffect(() => {
     if (!loading && !confettiFired.current) {
@@ -673,7 +598,7 @@ export default function BoardPage() {
         const confettiColors = VALUE_CONFETTI[valueTag] ?? VALUE_CONFETTI["Win Together"];
         confetti({ particleCount: 50, spread: 60, origin: { y: 0.6 }, colors: confettiColors });
         setMessage(""); setReaction(""); setSelectedGif(null); setPhotoData(null);
-        setAudioBlob(null); setAudioUrl(null); setTab("text"); setValueTag(""); setAnonymous(false);
+        setAudioBlob(null); setAudioUrl(null); setTab("text"); setValueTag(""); setAnonymous(false); setGifLink("");
         setShowComposerSheet(false);
         showToast("Cheer posted 🎉");
         await fetchBoard();
@@ -775,11 +700,14 @@ export default function BoardPage() {
       <div className="flex" style={{ borderBottom: "1px solid var(--border)" }}>
         {(["text","gif","photo","voice"] as const).map(t => (
           <button key={t} onClick={() => setTab(t)}
-            className="flex-1 py-2.5 text-base transition-colors"
+            className="flex-1 flex flex-col items-center gap-0.5 py-2 text-base transition-colors"
             style={tab === t
               ? { borderBottom: "2px solid var(--accent)", background: "var(--accent-light)" }
               : { color: "var(--muted)" }}>
-            {t === "text" ? "💬" : t === "gif" ? "🎞" : t === "photo" ? "📷" : "🎙"}
+            <span>{t === "text" ? "💬" : t === "gif" ? "🎞" : t === "photo" ? "📷" : "🎙"}</span>
+            <span className="text-[10px] leading-none">
+              {t === "text" ? "Message" : t === "gif" ? "Add Gif" : t === "photo" ? "Add photos" : "Voice"}
+            </span>
           </button>
         ))}
       </div>
@@ -841,37 +769,35 @@ export default function BoardPage() {
 
         {/* GIF TAB */}
         {tab === "gif" && (
-          <div className="space-y-2">
-            <form onSubmit={e => { e.preventDefault(); searchGifs(gifQuery); }} className="flex gap-1.5">
+          <div className="space-y-3">
+            <div>
+              <p className="text-xs mb-1.5" style={{ color: "var(--muted)" }}>
+                Paste any <a href="https://giphy.com" target="_blank" rel="noreferrer" style={{ color: "var(--accent)" }}>Giphy</a> link
+              </p>
               <input
-                value={gifQuery}
-                onChange={e => setGifQuery(e.target.value)}
-                placeholder="Search GIFs…"
-                className="flex-1 text-sm rounded-xl px-3 py-2 focus:outline-none"
-                style={{ border: "1px solid var(--border)" }} />
-              <button type="submit"
-                className="px-3 py-2 rounded-xl text-white text-sm font-medium transition-opacity hover:opacity-90"
-                style={{ background: "var(--accent)" }}>
-                {gifLoading ? "…" : "Go"}
-              </button>
-            </form>
-            {gifLoading ? (
-              <div className="flex items-center justify-center h-32 text-2xl animate-bounce">🎞</div>
-            ) : (
-              <div className="grid grid-cols-3 gap-1.5 max-h-56 overflow-y-auto">
-                {gifResults.map((gif, i) => (
-                  <button key={i} onClick={() => { setSelectedGif(gif); setTab("text"); }}
-                    className="aspect-square rounded-lg overflow-hidden transition-all"
-                    style={{ outline: "none" }}
-                    onMouseEnter={e => (e.currentTarget.style.boxShadow = "0 0 0 2px var(--accent)")}
-                    onMouseLeave={e => (e.currentTarget.style.boxShadow = "")}>
-                    <img src={gif.url} alt={gif.title} className="w-full h-full object-cover" />
-                  </button>
-                ))}
-                {gifResults.length === 0 && !gifLoading && (
-                  <p className="col-span-3 text-center text-xs py-8" style={{ color: "var(--muted)" }}>No GIFs found. Try a different search.</p>
-                )}
+                value={gifLink}
+                onChange={e => {
+                  setGifLink(e.target.value);
+                  const url = giphyToMediaUrl(e.target.value.trim());
+                  setSelectedGif(url ? { url, title: "GIF" } : null);
+                }}
+                placeholder="https://giphy.com/gifs/…"
+                className="w-full text-sm rounded-xl px-3 py-2 focus:outline-none"
+                style={{ border: "1px solid var(--border)" }}
+                autoFocus
+              />
+            </div>
+            {selectedGif ? (
+              <div className="space-y-2">
+                <img src={selectedGif.url} alt="GIF preview" className="w-full rounded-xl object-cover max-h-40" />
+                <button onClick={() => setTab("text")}
+                  className="w-full py-1.5 text-xs text-white rounded-lg"
+                  style={{ background: "var(--accent)" }}>
+                  Use this GIF ✓
+                </button>
               </div>
+            ) : gifLink.length > 0 && (
+              <p className="text-xs" style={{ color: "var(--muted)" }}>Paste a full giphy.com link to preview</p>
             )}
           </div>
         )}
