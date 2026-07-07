@@ -148,9 +148,7 @@ export default function CalendarPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
-  function load() {
-    setError(false);
-    setLoading(true);
+  function fetchUpcoming() {
     fetch("/api/calendar")
       .then((r) => {
         if (!r.ok) throw new Error(`Request failed (${r.status})`);
@@ -166,8 +164,14 @@ export default function CalendarPage() {
       });
   }
 
+  function load() {
+    setError(false);
+    setLoading(true);
+    fetchUpcoming();
+  }
+
   useEffect(() => {
-    load();
+    fetchUpcoming();
   }, []);
 
   // Group by month
@@ -248,7 +252,7 @@ export default function CalendarPage() {
       {!loading && error && (
         <div style={{ textAlign: "center", padding: "72px 32px" }}>
           <div style={{ fontSize: 15, fontWeight: 700, color: "var(--text)", marginBottom: 6 }}>
-            Couldn't load the calendar
+            Couldn&apos;t load the calendar
           </div>
           <div style={{ fontSize: 13, color: "var(--muted)", marginBottom: 20 }}>
             Check your connection and try again.
@@ -286,7 +290,7 @@ export default function CalendarPage() {
             No upcoming milestones
           </div>
           <div style={{ fontSize: 14, marginBottom: 28, maxWidth: 380, margin: "0 auto 28px" }}>
-            Nothing on the horizon yet. Create a board to start tracking your team's
+            Nothing on the horizon yet. Create a board to start tracking your team&apos;s
             birthdays, anniversaries, and big moments.
           </div>
           <Link

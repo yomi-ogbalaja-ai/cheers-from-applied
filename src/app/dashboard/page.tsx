@@ -115,9 +115,7 @@ export default function DashboardPage() {
   const [hoveredRow, setHoveredRow] = useState<string | null>(null);
   const [error, setError] = useState(false);
 
-  function load() {
-    setError(false);
-    setLoading(true);
+  function fetchDashboard() {
     fetch("/api/dashboard")
       .then((r) => {
         if (!r.ok) throw new Error(`Request failed (${r.status})`);
@@ -133,8 +131,14 @@ export default function DashboardPage() {
       });
   }
 
+  function load() {
+    setError(false);
+    setLoading(true);
+    fetchDashboard();
+  }
+
   useEffect(() => {
-    load();
+    fetchDashboard();
   }, []);
 
   const uniqueContributors = data
@@ -195,7 +199,7 @@ export default function DashboardPage() {
       {!loading && error && (
         <div style={{ textAlign: "center", padding: "72px 32px" }}>
           <div style={{ fontSize: 15, fontWeight: 700, color: "var(--text)", marginBottom: 6 }}>
-            Couldn't load the dashboard
+            Couldn&apos;t load the dashboard
           </div>
           <div style={{ fontSize: 13, color: "var(--muted)", marginBottom: 20 }}>
             Check your connection and try again.

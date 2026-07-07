@@ -49,9 +49,7 @@ export default function BadgesPage() {
   const [groups, setGroups] = useState<PersonGroup[] | null>(null);
   const [error, setError] = useState(false);
 
-  function load() {
-    setError(false);
-    setGroups(null);
+  function fetchGroups() {
     fetch("/api/badges")
       .then((r) => {
         if (!r.ok) throw new Error(`Request failed (${r.status})`);
@@ -67,8 +65,14 @@ export default function BadgesPage() {
       });
   }
 
+  function load() {
+    setError(false);
+    setGroups(null);
+    fetchGroups();
+  }
+
   useEffect(() => {
-    load();
+    fetchGroups();
   }, []);
 
   const totalBadges = groups ? groups.reduce((s, g) => s + g.badges.length, 0) : 0;
@@ -123,7 +127,7 @@ export default function BadgesPage() {
         {/* Error */}
         {error && (
           <div className="text-center py-24">
-            <p className="text-sm font-medium mb-1" style={{ color: "var(--text)" }}>Couldn't load badges</p>
+            <p className="text-sm font-medium mb-1" style={{ color: "var(--text)" }}>Couldn&apos;t load badges</p>
             <p className="text-xs mb-5" style={{ color: "var(--muted)" }}>Check your connection and try again.</p>
             <button onClick={load}
               className="inline-block text-white px-6 py-2 rounded-lg text-sm font-medium cursor-pointer"

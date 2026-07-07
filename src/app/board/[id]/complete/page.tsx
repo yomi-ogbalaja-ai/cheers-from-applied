@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import Link from "next/link";
 import CompletionConfetti from "./CompletionConfetti";
 
 interface Board {
@@ -125,11 +126,11 @@ export default async function BoardCompletePage({ params }: { params: Promise<{ 
           style={{ borderColor: "var(--accent)", color: "var(--accent)" }}>
           View full board
         </a>
-        <a href="/board/new"
+        <Link href="/board/new"
           className="text-center text-sm font-medium px-6 py-3 rounded-xl text-white transition-opacity hover:opacity-90"
           style={{ background: "var(--accent)" }}>
           Create your own board
-        </a>
+        </Link>
       </div>
     </div>
   );

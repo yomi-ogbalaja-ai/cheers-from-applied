@@ -17,9 +17,13 @@ export default function NavClient() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [dark, setDark] = useState(false);
 
+  // Reads localStorage, so this can't be a useState lazy initializer — this
+  // component renders in pages that are statically prerendered, and
+  // `localStorage` doesn't exist during that server-side render.
   useEffect(() => {
     const saved = localStorage.getItem("theme");
     const isDark = saved === "dark";
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setDark(isDark);
     document.documentElement.setAttribute("data-theme", saved ?? "light");
   }, []);

@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import { useParams } from "next/navigation";
+import Link from "next/link";
 import confetti from "canvas-confetti";
 
 interface Board {
@@ -68,7 +69,7 @@ export default function SharedBoardPage() {
         <p className="text-5xl">🔍</p>
         <h1 className="text-2xl font-bold" style={{ color: "var(--text)" }}>Board not found</h1>
         <p style={{ color: "var(--muted)" }}>This link may have expired or never existed.</p>
-        <a href="/" className="text-sm mt-2" style={{ color: "var(--accent)" }}>← Go home</a>
+        <Link href="/" className="text-sm mt-2" style={{ color: "var(--accent)" }}>← Go home</Link>
       </div>
     );
   }
@@ -187,9 +188,9 @@ export default function SharedBoardPage() {
       <footer className="py-6 text-center flex flex-col items-center gap-1"
         style={{ background: "var(--card)", borderTop: "1px solid var(--border)" }}>
         <p className="text-sm" style={{ color: "var(--muted)" }}>Made with ❤️ at Applied</p>
-        <a href="/" className="text-sm font-medium hover:underline" style={{ color: "var(--accent)" }}>
+        <Link href="/" className="text-sm font-medium hover:underline" style={{ color: "var(--accent)" }}>
           Create your own board →
-        </a>
+        </Link>
       </footer>
     </div>
   );

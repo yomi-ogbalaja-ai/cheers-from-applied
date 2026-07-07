@@ -57,28 +57,32 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
-  async function load() {
+  function fetchAll() {
+    return Promise.all([
+      fetch("/api/boards").then(r => { if (!r.ok) throw new Error(); return r.json(); }),
+      fetch("/api/badges").then(r => { if (!r.ok) throw new Error(); return r.json(); }),
+      fetch("/api/calendar").then(r => { if (!r.ok) throw new Error(); return r.json(); }),
+    ])
+      .then(([b, bg, cal]) => {
+        setBoards(Array.isArray(b) ? b : []);
+        setBadgeGroups(Array.isArray(bg) ? bg : []);
+        setMilestones(Array.isArray(cal?.upcoming) ? cal.upcoming : []);
+        setLoading(false);
+      })
+      .catch(() => {
+        setError(true);
+        setLoading(false);
+      });
+  }
+
+  function load() {
     setError(false);
     setLoading(true);
-    try {
-      const [b, bg, cal] = await Promise.all([
-        fetch("/api/boards").then(r => { if (!r.ok) throw new Error(); return r.json(); }),
-        fetch("/api/badges").then(r => { if (!r.ok) throw new Error(); return r.json(); }),
-        fetch("/api/calendar").then(r => { if (!r.ok) throw new Error(); return r.json(); }),
-      ]);
-      setBoards(Array.isArray(b) ? b : []);
-      setBadgeGroups(Array.isArray(bg) ? bg : []);
-      setMilestones(Array.isArray(cal?.upcoming) ? cal.upcoming : []);
-    } catch {
-      setError(true);
-    } finally {
-      setLoading(false);
-    }
+    fetchAll();
   }
 
   useEffect(() => {
-    load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    fetchAll();
   }, []);
 
   const recentBadges = badgeGroups
@@ -108,7 +112,7 @@ export default function HomePage() {
               Cheers from Applied
             </h1>
             <p className="text-sm" style={{ color: "var(--muted)" }}>
-              Celebrate your team's milestones, big and small
+              Celebrate your team&apos;s milestones, big and small
             </p>
             <p className="text-xs mt-1" style={{ color: "var(--muted)" }}>
               One place for birthdays, promotions, anniversaries and every win in between
@@ -161,7 +165,7 @@ export default function HomePage() {
         {/* Board grid */}
         {error ? (
           <div className="py-20 text-center">
-            <p className="text-sm font-medium mb-1" style={{ color: "var(--text)" }}>Couldn't load boards</p>
+            <p className="text-sm font-medium mb-1" style={{ color: "var(--text)" }}>Couldn&apos;t load boards</p>
             <p className="text-xs mb-5" style={{ color: "var(--muted)" }}>Something went wrong. Please try again.</p>
             <button onClick={load}
               className="inline-block px-4 py-2 rounded-md text-white text-sm font-medium cursor-pointer"
@@ -191,7 +195,7 @@ export default function HomePage() {
         ) : boards.length === 0 ? (
           <div className="py-20 text-center">
             <p className="text-sm font-medium mb-1" style={{ color: "var(--text)" }}>No boards yet</p>
-            <p className="text-xs mb-5" style={{ color: "var(--muted)" }}>Start celebrating your team's milestones</p>
+            <p className="text-xs mb-5" style={{ color: "var(--muted)" }}>Start celebrating your team&apos;s milestones</p>
             <Link href="/board/new"
               className="inline-block px-4 py-2 rounded-md text-white text-sm font-medium"
               style={{ background: "var(--accent)" }}>

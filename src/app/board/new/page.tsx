@@ -149,11 +149,14 @@ export default function NewBoardPage() {
   const [created, setCreated] = useState<CreatedBoard | null>(null);
   const [copied, setCopied] = useState<"board" | "share" | null>(null);
 
-  // Auto-populate creator from localStorage
+  // Auto-populate creator from localStorage. This can't be a useState lazy
+  // initializer instead — this page is statically prerendered, and
+  // `localStorage` doesn't exist during that server-side render.
   useEffect(() => {
     const savedName = localStorage.getItem("cheer_creator_name");
     const savedEmail = localStorage.getItem("cheer_creator_email");
     if (savedName || savedEmail) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setForm(f => ({ ...f, creatorName: savedName ?? f.creatorName, creatorEmail: savedEmail ?? f.creatorEmail }));
     }
   }, []);
