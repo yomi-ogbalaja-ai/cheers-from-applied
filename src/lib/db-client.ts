@@ -408,8 +408,14 @@ export async function ensureDb(): Promise<void> {
   return _initPromise;
 }
 
-// Execute with one retry after a short delay (transient network blips).
-async function exec(sql: string, args: unknown[]) {
+// Reads retry once after a short delay (transient network blips) — a SELECT
+// is always safe to repeat. Writes are never retried: if the first attempt's
+// ack was lost but it actually committed on the server, blindly repeating it
+// would silently double-execute (e.g. a second badge row with a new
+// DB-generated id, since retrying an INSERT with no client-supplied primary
+// key isn't caught by any constraint). A write that errors should surface
+// the error rather than risk a silent duplicate.
+async function execRead(sql: string, args: unknown[]) {
   await ensureDb();
   const backend = _backend!;
   try {
@@ -420,17 +426,31 @@ async function exec(sql: string, args: unknown[]) {
   }
 }
 
+async function execWrite(sql: string, args: unknown[]) {
+  await ensureDb();
+  const backend = _backend!;
+  return await backend.query(sql, args);
+}
+
 export async function dbGet<T = Record<string, unknown>>(sql: string, args: unknown[] = []): Promise<T | null> {
-  const rows = await exec(sql, args);
+  const rows = await execRead(sql, args);
   return (rows[0] as unknown as T) ?? null;
 }
 
 export async function dbAll<T = Record<string, unknown>>(sql: string, args: unknown[] = []): Promise<T[]> {
-  const rows = await exec(sql, args);
+  const rows = await execRead(sql, args);
   return rows as unknown as T[];
 }
 
 export async function dbRun(sql: string, args: unknown[] = []): Promise<{ rowsAffected: number }> {
-  const rows = await exec(sql, args);
+  const rows = await execWrite(sql, args);
   return { rowsAffected: rows.length };
+}
+
+// For an INSERT/UPDATE ... RETURNING whose caller needs the returned rows to
+// tell whether the write applied (e.g. a conditional write guarded by a WHERE
+// clause). Never retried — see execWrite.
+export async function dbRunReturning<T = Record<string, unknown>>(sql: string, args: unknown[] = []): Promise<T[]> {
+  const rows = await execWrite(sql, args);
+  return rows as unknown as T[];
 }

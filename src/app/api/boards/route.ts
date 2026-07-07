@@ -112,7 +112,7 @@ export async function POST(req: NextRequest) {
       body.is_private ? 1 : 0,
       body.public_share_enabled !== false ? 1 : 0,
       share_token,
-      body.requires_gift_approval !== false ? 1 : 0,
+      body.requires_gift_approval ? 1 : 0,
       optStr(body.gift_manager_email, 254),
       optStr(body.created_by, 254),
       optStr(body.created_by_name, 100),

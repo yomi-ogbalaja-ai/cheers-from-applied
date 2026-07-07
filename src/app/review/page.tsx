@@ -76,10 +76,8 @@ export default function ReviewPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
-  function load() {
-    setError(false);
-    setLoading(true);
-    fetch("/api/review?year=2026")
+  function fetchReview() {
+    fetch(`/api/review?year=${new Date().getFullYear()}`)
       .then((r) => {
         if (!r.ok) throw new Error(`Request failed (${r.status})`);
         return r.json();
@@ -94,8 +92,14 @@ export default function ReviewPage() {
       });
   }
 
+  function load() {
+    setError(false);
+    setLoading(true);
+    fetchReview();
+  }
+
   useEffect(() => {
-    load();
+    fetchReview();
   }, []);
 
   if (loading) {
@@ -117,7 +121,7 @@ export default function ReviewPage() {
     return (
       <div style={{ maxWidth: 860, margin: "0 auto", padding: "80px 24px", textAlign: "center" }}>
         <div style={{ fontSize: 15, fontWeight: 700, color: "var(--text)", marginBottom: 6 }}>
-          Couldn't load the year in review
+          Couldn&apos;t load the year in review
         </div>
         <div style={{ fontSize: 13, color: "var(--muted)", marginBottom: 20 }}>
           Check your connection and try again.

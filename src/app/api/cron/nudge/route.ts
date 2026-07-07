@@ -18,10 +18,10 @@ export async function GET(request: NextRequest) {
     const now = new Date();
     const threeDaysFromNow = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
 
-    // Get all open boards expiring in ≤ 3 days
+    // Get all active boards expiring in ≤ 3 days
     const boards = await dbAll(
       `SELECT * FROM boards
-         WHERE status = 'open'
+         WHERE status = 'active'
            AND expires_at IS NOT NULL
            AND expires_at <= ?
            AND expires_at >= ?`,

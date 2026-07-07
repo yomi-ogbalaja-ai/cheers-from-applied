@@ -24,8 +24,6 @@ interface Badge {
 }
 
 // ─── Constants ───────────────────────────────────────────────────────────────
-const EXPECTED_TEAM = ["Ali Chen","Bree Santos","Carlos Diaz","Dani Park","Erin Walsh","Femi Okafor","Grace Liu","Hana Morita"];
-
 const TYPE_EMOJI: Record<string, string> = {
   birthday: "🎂", wedding: "💍", new_baby: "👶", work_anniversary: "🥂",
   promotion: "🚀", get_well: "💐", new_hire: "👋", personal_achievement: "🌟",
@@ -181,6 +179,64 @@ function timeAgo(dateStr: string) {
 
 const QUICK_REACTS = ["❤️","🔥","🙌","😂","👏","🎉"];
 
+// Shared edit/delete logic for a post, used by both PostTile and CheerSnippet.
+function usePostEditing(post: Post, onUpdate?: () => Promise<void>) {
+  const [editing, setEditing] = useState(false);
+  const [editMsg, setEditMsg] = useState(post.message ?? "");
+  const [saving, setSaving] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  function startEditing() {
+    setEditMsg(post.message ?? "");
+    setError(null);
+    setEditing(true);
+  }
+
+  async function saveEdit() {
+    setSaving(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/boards/${post.board_id}/posts`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ postId: post.id, message: editMsg }),
+      });
+      if (!res.ok) throw new Error();
+      setEditing(false);
+      await onUpdate?.();
+    } catch {
+      setError("Couldn't save your edit. Try again.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function deletePost() {
+    setDeleting(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/boards/${post.board_id}/posts`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ postId: post.id }),
+      });
+      if (!res.ok) throw new Error();
+      await onUpdate?.();
+    } catch {
+      setError("Couldn't delete. Try again.");
+      setDeleting(false);
+      setConfirmDelete(false);
+    }
+  }
+
+  return {
+    editing, setEditing, editMsg, setEditMsg, saving, error,
+    confirmDelete, setConfirmDelete, deleting, startEditing, saveEdit, deletePost,
+  };
+}
+
 function PostReactions({ post, onUpdate }: { post: Post; onUpdate?: () => Promise<void> }) {
   const [reactions, setReactions] = useState<Record<string, number>>(
     () => { try { return JSON.parse(post.reactions_json ?? "{}"); } catch { return {}; } }
@@ -190,15 +246,19 @@ function PostReactions({ post, onUpdate }: { post: Post; onUpdate?: () => Promis
   async function react(emoji: string) {
     setAnimating(emoji);
     setTimeout(() => setAnimating(null), 400);
-    const res = await fetch(`/api/boards/${post.board_id}/posts/${post.id}/react`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ emoji }),
-    });
-    if (res.ok) {
-      const d = await res.json();
-      setReactions(d.reactions ?? {});
-      await onUpdate?.();
+    try {
+      const res = await fetch(`/api/boards/${post.board_id}/posts/${post.id}/react`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ emoji }),
+      });
+      if (res.ok) {
+        const d = await res.json();
+        setReactions(d.reactions ?? {});
+        await onUpdate?.();
+      }
+    } catch {
+      // Network error — the click already animated; the count just won't update.
     }
   }
 
@@ -224,33 +284,10 @@ function PostReactions({ post, onUpdate }: { post: Post; onUpdate?: () => Promis
 
 // ─── Post Tile (full, used in wall view + receiver view) ─────────────────────
 function PostTile({ post, onUpdate }: { post: Post; onUpdate?: () => Promise<void> }) {
-  const [editing, setEditing] = useState(false);
-  const [editMsg, setEditMsg] = useState(post.message ?? "");
-  const [saving, setSaving] = useState(false);
-  const [confirmDelete, setConfirmDelete] = useState(false);
-  const [deleting, setDeleting] = useState(false);
-
-  async function saveEdit() {
-    setSaving(true);
-    await fetch(`/api/boards/${post.board_id}/posts`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ postId: post.id, message: editMsg }),
-    });
-    setSaving(false);
-    setEditing(false);
-    await onUpdate?.();
-  }
-
-  async function deletePost() {
-    setDeleting(true);
-    await fetch(`/api/boards/${post.board_id}/posts`, {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ postId: post.id }),
-    });
-    await onUpdate?.();
-  }
+  const {
+    editing, setEditing, editMsg, setEditMsg, saving, error,
+    confirmDelete, setConfirmDelete, deleting, startEditing, saveEdit, deletePost,
+  } = usePostEditing(post, onUpdate);
 
   const editBtn = onUpdate && !post.is_manager_note ? (
     confirmDelete ? (
@@ -268,7 +305,7 @@ function PostTile({ post, onUpdate }: { post: Post; onUpdate?: () => Promise<voi
       </div>
     ) : (
       <div className="ml-auto flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
-        <button onClick={() => { setEditMsg(post.message ?? ""); setEditing(true); }}
+        <button onClick={startEditing}
           className="text-xs px-2 py-0.5 rounded-full"
           style={{ color: "var(--muted)", border: "1px solid var(--border)" }}>
           Edit
@@ -287,6 +324,7 @@ function PostTile({ post, onUpdate }: { post: Post; onUpdate?: () => Promise<voi
       <textarea value={editMsg} onChange={e => setEditMsg(e.target.value)} rows={3}
         className="w-full text-sm rounded-xl px-3 py-2 resize-none focus:outline-none"
         style={{ border: "1px solid var(--accent)" }} />
+      {error && <p className="text-xs text-red-500">{error}</p>}
       <div className="flex gap-1.5">
         <button onClick={saveEdit} disabled={saving}
           className="px-3 py-1 text-xs text-white rounded-lg disabled:opacity-50"
@@ -400,33 +438,10 @@ function PostTile({ post, onUpdate }: { post: Post; onUpdate?: () => Promise<voi
 
 // ─── Cheer Snippet (highlights view — always expanded) ────────────────────────
 function CheerSnippet({ post, onUpdate }: { post: Post; onUpdate?: () => Promise<void> }) {
-  const [editing, setEditing] = useState(false);
-  const [editMsg, setEditMsg] = useState(post.message ?? "");
-  const [saving, setSaving] = useState(false);
-  const [confirmDelete, setConfirmDelete] = useState(false);
-  const [deleting, setDeleting] = useState(false);
-
-  async function saveEdit() {
-    setSaving(true);
-    await fetch(`/api/boards/${post.board_id}/posts`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ postId: post.id, message: editMsg }),
-    });
-    setSaving(false);
-    setEditing(false);
-    await onUpdate?.();
-  }
-
-  async function deletePost() {
-    setDeleting(true);
-    await fetch(`/api/boards/${post.board_id}/posts`, {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ postId: post.id }),
-    });
-    await onUpdate?.();
-  }
+  const {
+    editing, setEditing, editMsg, setEditMsg, saving, error,
+    confirmDelete, setConfirmDelete, deleting, startEditing, saveEdit, deletePost,
+  } = usePostEditing(post, onUpdate);
 
   return (
     <div className="group rounded-xl p-4 shadow-sm transition-all hover:shadow-md"
@@ -460,7 +475,7 @@ function CheerSnippet({ post, onUpdate }: { post: Post; onUpdate?: () => Promise
             </div>
           ) : (
             <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
-              <button onClick={() => { setEditMsg(post.message ?? ""); setEditing(true); }}
+              <button onClick={startEditing}
                 className="text-xs px-2 py-0.5 rounded-full"
                 style={{ color: "var(--muted)", border: "1px solid var(--border)" }}>
                 Edit
@@ -479,6 +494,7 @@ function CheerSnippet({ post, onUpdate }: { post: Post; onUpdate?: () => Promise
           <textarea value={editMsg} onChange={e => setEditMsg(e.target.value)} rows={3}
             className="w-full text-sm rounded-xl px-3 py-2 resize-none focus:outline-none"
             style={{ border: "1px solid var(--accent)" }} />
+          {error && <p className="text-xs text-red-500">{error}</p>}
           <div className="flex gap-1.5">
             <button onClick={saveEdit} disabled={saving}
               className="px-3 py-1 text-xs text-white rounded-lg disabled:opacity-50"
@@ -562,26 +578,34 @@ export default function BoardPage() {
   const [badgeForm, setBadgeForm] = useState({ person_name: "", person_email: "", badge_type: "team_player", reason: "" });
   const [badgeLoading, setBadgeLoading] = useState(false);
 
-  const fetchBoard = useCallback(async () => {
-    setLoadError(false);
-    try {
-      const res = await fetch(`/api/boards/${id}`);
-      if (res.status === 404) { setLoading(false); return; }
-      if (!res.ok) throw new Error(`Request failed (${res.status})`);
-      const data = await res.json();
-      setBoard(data.board);
-      setPosts(data.posts);
-      setBadges(data.badges);
-    } catch {
-      setLoadError(true);
-    } finally {
-      setLoading(false);
-    }
+  const fetchBoardData = useCallback(() => {
+    return fetch(`/api/boards/${id}`)
+      .then(res => {
+        if (res.status === 404) { setLoading(false); return null; }
+        if (!res.ok) throw new Error(`Request failed (${res.status})`);
+        return res.json();
+      })
+      .then(data => {
+        if (!data) return;
+        setBoard(data.board);
+        setPosts(data.posts);
+        setBadges(data.badges);
+        setLoading(false);
+      })
+      .catch(() => {
+        setLoadError(true);
+        setLoading(false);
+      });
   }, [id]);
 
+  const fetchBoard = useCallback(() => {
+    setLoadError(false);
+    return fetchBoardData();
+  }, [fetchBoardData]);
+
   useEffect(() => {
-    fetchBoard();
-  }, [fetchBoard]);
+    fetchBoardData();
+  }, [fetchBoardData]);
 
 
   useEffect(() => {
@@ -595,7 +619,13 @@ export default function BoardPage() {
 
   // ── Recording ─────────────────────────────────────────────────────────────
   async function startRecording() {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    let stream: MediaStream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch {
+      showToast("Microphone access denied. Check your browser permissions.");
+      return;
+    }
     const mr = new MediaRecorder(stream);
     chunksRef.current = [];
     mr.ondataavailable = (e) => chunksRef.current.push(e.data);
@@ -693,33 +723,45 @@ export default function BoardPage() {
   async function submitManagerNote() {
     if (!managerNote.trim()) return;
     setSavingNote(true);
-    await fetch(`/api/boards/${id}/posts`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        author_name: "Manager",
-        author_avatar_color: "#6366f1",
-        message: managerNote.trim(),
-        is_manager_note: true,
-      }),
-    });
-    setManagerNote("");
-    setSavingNote(false);
-    await fetchBoard();
+    try {
+      const res = await fetch(`/api/boards/${id}/posts`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          author_name: "Manager",
+          author_avatar_color: "#6366f1",
+          message: managerNote.trim(),
+          is_manager_note: true,
+        }),
+      });
+      if (!res.ok) throw new Error();
+      setManagerNote("");
+      await fetchBoard();
+    } catch {
+      showToast("Couldn't save the note. Try again.");
+    } finally {
+      setSavingNote(false);
+    }
   }
 
   // ── Board title/description ────────────────────────────────────────────────
   async function saveDetails() {
     if (!editTitle.trim()) return;
     setSavingDetails(true);
-    await fetch(`/api/boards/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title: editTitle.trim(), description: editDescription.trim() }),
-    });
-    setSavingDetails(false);
-    setEditingDetails(false);
-    await fetchBoard();
+    try {
+      const res = await fetch(`/api/boards/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: editTitle.trim(), description: editDescription.trim() }),
+      });
+      if (!res.ok) throw new Error();
+      setEditingDetails(false);
+      await fetchBoard();
+    } catch {
+      showToast("Couldn't save changes. Try again.");
+    } finally {
+      setSavingDetails(false);
+    }
   }
 
   // ── Give Badge ────────────────────────────────────────────────────────────
@@ -727,17 +769,62 @@ export default function BoardPage() {
     e.preventDefault();
     setBadgeLoading(true);
     try {
-      await fetch(`/api/boards/${id}/badges`, {
+      const res = await fetch(`/api/boards/${id}/badges`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(badgeForm),
       });
+      if (!res.ok) {
+        let msg = "Couldn't award the badge. Try again.";
+        try {
+          const data = await res.json();
+          if (data?.error) msg = data.error;
+        } catch { /* keep default */ }
+        showToast(msg);
+        return;
+      }
       setBadgeModal(false);
       setBadgeForm({ person_name: "", person_email: "", badge_type: "team_player", reason: "" });
       showToast("Badge awarded 🏅");
-      fetchBoard();
+      await fetchBoard();
+    } catch {
+      showToast("Network error. Couldn't award the badge.");
     } finally {
       setBadgeLoading(false);
+    }
+  }
+
+  // ── AI cheer generator ────────────────────────────────────────────────────
+  async function generateAiMessage() {
+    setAiLoading(true);
+    try {
+      const res = await fetch(`/api/boards/${id}/ai-message`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ milestone_type: board?.type, honoree_name: board?.honoree_name, sender_context: aiContext }),
+      });
+      if (!res.ok) throw new Error();
+      const d = await res.json();
+      if (d.message) setMessage(d.message);
+    } catch {
+      showToast("Couldn't generate a cheer. Try again.");
+    } finally {
+      setAiLoading(false);
+    }
+  }
+
+  // ── AI recap generator ────────────────────────────────────────────────────
+  async function generateRecap() {
+    setRecapLoading(true);
+    try {
+      const res = await fetch(`/api/boards/${id}/ai-recap`, { method: "POST" });
+      if (!res.ok) throw new Error();
+      const d = await res.json();
+      setRecapText(d.recap ?? null);
+    } catch {
+      showToast("Couldn't generate the recap. Try again.");
+    } finally {
+      setRecapLoading(false);
     }
   }
 
@@ -752,7 +839,7 @@ export default function BoardPage() {
   if (loadError && !board) return (
     <div className="min-h-screen flex items-center justify-center" style={{ background: "var(--bg)" }}>
       <div className="text-center">
-        <p className="text-sm font-medium mb-1" style={{ color: "var(--text)" }}>Couldn't load the board</p>
+        <p className="text-sm font-medium mb-1" style={{ color: "var(--text)" }}>Couldn&apos;t load the board</p>
         <p className="text-xs mb-5" style={{ color: "var(--muted)" }}>Check your connection and try again.</p>
         <button onClick={() => { setLoading(true); fetchBoard(); }}
           className="px-4 py-2 rounded-md text-white text-sm font-medium cursor-pointer"
@@ -818,18 +905,7 @@ export default function BoardPage() {
                 placeholder="Optional: add context (e.g. 'worked on the sensor team')"
                 className="w-full text-xs rounded-lg px-2.5 py-1.5 focus:outline-none"
                 style={{ border: "1px solid var(--border)", background: "var(--card)", color: "var(--text)" }} />
-              <button disabled={aiLoading}
-                onClick={async () => {
-                  setAiLoading(true);
-                  const res = await fetch(`/api/boards/${id}/ai-message`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ milestone_type: board?.type, honoree_name: board?.honoree_name, sender_context: aiContext }),
-                  });
-                  const d = await res.json();
-                  if (d.message) setMessage(d.message);
-                  setAiLoading(false);
-                }}
+              <button disabled={aiLoading} onClick={generateAiMessage}
                 className="w-full py-1.5 rounded-lg text-xs font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
                 style={{ background: "var(--accent)" }}>
                 {aiLoading ? "Generating…" : "Generate a cheer"}
@@ -1242,23 +1318,24 @@ export default function BoardPage() {
             </div>
           </div>
 
-          {/* Team participation checklist */}
+          {/* Team participation */}
           <div className="rounded-2xl p-5 shadow-sm" style={{ background: "var(--card)", border: "1px solid var(--border)" }}>
-            <p className="font-semibold mb-3" style={{ color: "var(--text)" }}>✅ Team Participation</p>
-            <div className="space-y-2">
-              {EXPECTED_TEAM.map(name => {
-                const posted = posters.includes(name);
-                return (
-                  <div key={name} className="flex items-center gap-3 p-2.5 rounded-xl"
-                    style={{ background: posted ? "#ECFDF5" : "var(--bg)" }}>
-                    <span className="text-lg">{posted ? "✅" : "⬜"}</span>
-                    <span className="text-sm" style={{ color: "var(--text)" }}>{name}</span>
-                    {posted && <span className="ml-auto text-xs text-emerald-600 font-medium">Posted</span>}
-                  </div>
-                );
-              })}
-            </div>
-            <p className="text-xs mt-3" style={{ color: "var(--muted)" }}>{posters.length} / {EXPECTED_TEAM.length} team members posted</p>
+            <p className="font-semibold mb-3" style={{ color: "var(--text)" }}>✅ Who&apos;s Posted</p>
+            {posters.length > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                {posters.map(name => (
+                  <span key={name} className="text-sm px-3 py-1.5 rounded-xl"
+                    style={{ background: "#ECFDF5", color: "var(--text)" }}>
+                    {name}
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm" style={{ color: "var(--muted)" }}>No one has posted yet.</p>
+            )}
+            <p className="text-xs mt-3" style={{ color: "var(--muted)" }}>
+              {posters.length} {posters.length === 1 ? "person has" : "people have"} posted
+            </p>
           </div>
 
           {/* AI Recap */}
@@ -1269,14 +1346,7 @@ export default function BoardPage() {
                 {recapText}
               </div>
             ) : (
-              <button disabled={recapLoading}
-                onClick={async () => {
-                  setRecapLoading(true);
-                  const res = await fetch(`/api/boards/${id}/ai-recap`, { method: "POST" });
-                  const d = await res.json();
-                  setRecapText(d.recap);
-                  setRecapLoading(false);
-                }}
+              <button disabled={recapLoading} onClick={generateRecap}
                 className="w-full py-2.5 rounded-xl text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
                 style={{ background: "var(--accent)" }}>
                 {recapLoading ? "Generating recap…" : "Generate AI highlights summary"}

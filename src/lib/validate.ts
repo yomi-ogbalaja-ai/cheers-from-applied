@@ -12,7 +12,7 @@ export function serverError(message = "Something went wrong") {
 export async function parseJson(req: Request): Promise<Record<string, unknown> | null> {
   try {
     const body = await req.json();
-    return typeof body === "object" && body !== null ? body as Record<string, unknown> : null;
+    return typeof body === "object" && body !== null && !Array.isArray(body) ? body as Record<string, unknown> : null;
   } catch {
     return null;
   }
