@@ -1,16 +1,12 @@
 "use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { BADGE_META } from "@/lib/badges";
 
 const TYPE_EMOJI: Record<string, string> = {
   birthday: "🎂", wedding: "💍", new_baby: "👶", work_anniversary: "🥂",
   promotion: "🚀", get_well: "💐", new_hire: "👋", personal_achievement: "🌟",
-};
-
-const BADGE_META: Record<string, { icon: string }> = {
-  cheer_champion: { icon: "🏆" }, generous_soul: { icon: "💝" },
-  birthday_star: { icon: "⭐" }, rising_star: { icon: "🚀" },
-  team_player: { icon: "🤝" }, heartwarmer: { icon: "❤️" }, welcome_wagon: { icon: "👋" },
+  team_event: "🎊", other: "💛",
 };
 
 // Light value references shown on board cards

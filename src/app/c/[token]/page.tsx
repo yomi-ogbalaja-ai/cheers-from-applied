@@ -4,6 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import confetti from "canvas-confetti";
+import { getSessionId } from "@/lib/session-id";
 
 interface Board {
   id: string; title: string; honoree_name: string; honoree_avatar_color: string;
@@ -21,6 +22,7 @@ interface Post {
 const TYPE_EMOJI: Record<string, string> = {
   birthday: "🎂", wedding: "💍", new_baby: "👶", work_anniversary: "🥂",
   promotion: "🚀", get_well: "💐", new_hire: "👋", personal_achievement: "🌟",
+  team_event: "🎊", other: "💛",
 };
 
 function initials(name: string) {
@@ -54,6 +56,13 @@ export default function SharedBoardPage() {
         if (!data) return;
         setBoard(data.board);
         setPosts(data.posts ?? []);
+        if (data.board?.id) {
+          fetch(`/api/celebrations/${data.board.id}/view`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ session_id: getSessionId() }),
+          }).catch(() => { /* view tracking is best-effort */ });
+        }
         if (!confettiFired.current) {
           confettiFired.current = true;
           confetti({ particleCount: 70, spread: 80, origin: { y: 0.3 },
@@ -168,12 +177,6 @@ export default function SharedBoardPage() {
                     <Avatar name={post.author_name} color={post.author_avatar_color} size={7} />
                     <div>
                       <p className="text-sm font-medium" style={{ color: "var(--text)" }}>{post.author_name}</p>
-                      {post.values_tag && (
-                        <span className="text-[10px] font-medium px-2 py-0.5 rounded-full"
-                          style={{ background: "var(--accent-light)", color: "var(--accent)" }}>
-                          {post.values_tag}
-                        </span>
-                      )}
                     </div>
                   </div>
                   {post.message && <p className="text-sm leading-relaxed" style={{ color: "var(--text)" }}>{post.message}</p>}

@@ -14,6 +14,7 @@ interface Post {
 const TYPE_EMOJI: Record<string, string> = {
   birthday: "🎂", wedding: "💍", new_baby: "👶", work_anniversary: "🥂",
   promotion: "🚀", get_well: "💐", new_hire: "👋", personal_achievement: "🌟",
+  team_event: "🎊", other: "💛",
 };
 
 function initials(name: string) {

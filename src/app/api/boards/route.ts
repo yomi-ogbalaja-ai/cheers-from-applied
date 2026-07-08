@@ -12,6 +12,8 @@ const BOARD_TYPES = [
   "new_baby",
   "get_well",
   "personal_achievement",
+  "team_event",
+  "other",
 ];
 
 const VALUES_TAGS = ["Win Together", "Be Bold", "Move with Urgency"];

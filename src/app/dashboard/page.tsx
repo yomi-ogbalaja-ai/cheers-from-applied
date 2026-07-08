@@ -10,6 +10,7 @@ const TYPE_EMOJI: Record<string, string> = {
   milestone: "🌟",
   shoutout: "📣",
   welcome: "🎉",
+  team_event: "🎊",
   other: "💛",
 };
 
@@ -233,6 +234,7 @@ export default function DashboardPage() {
               icon="✍️"
             />
             <StatCard label="Total Contributors" value={uniqueContributors} icon="👥" />
+            <StatCard label="Total Views" value={data.total_views ?? 0} icon="👀" />
           </div>
 
           {/* Active Boards Table */}
@@ -267,7 +269,7 @@ export default function DashboardPage() {
                       borderBottom: "1px solid var(--border)",
                     }}
                   >
-                    {["Board", "Honoree", "Type", "Value Tag", "Participation", "Expires"].map(
+                    {["Board", "Honoree", "Type", "Value Tag", "Participation", "Views", "Expires"].map(
                       (h) => (
                         <th
                           key={h}
@@ -364,6 +366,9 @@ export default function DashboardPage() {
                           </span>
                         </div>
                       </td>
+                      <td style={{ padding: "14px 16px", color: "var(--text)", fontSize: 13 }}>
+                        {row.view_count ?? 0}
+                      </td>
                       <td
                         style={{
                           padding: "14px 16px",
@@ -384,7 +389,7 @@ export default function DashboardPage() {
                   {(data.participation ?? []).length === 0 && (
                     <tr>
                       <td
-                        colSpan={6}
+                        colSpan={7}
                         style={{
                           padding: "28px 16px",
                           textAlign: "center",

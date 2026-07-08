@@ -1,18 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { dbGet, dbAll, dbRun } from "@/lib/db-client";
 import { badRequest, serverError, parseJson, str, optStr, isEmail } from "@/lib/validate";
-
-const BADGE_TYPES = [
-  "team_player",
-  "cheer_champion",
-  "birthday_star",
-  "rising_star",
-  "generous_soul",
-  "milestone_maker",
-  "culture_carrier",
-  "heartwarmer",
-  "welcome_wagon",
-];
+import { BADGE_TYPES } from "@/lib/badges";
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -38,7 +27,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     if (!person_name) return badRequest("person_name is required (max 100 chars)");
 
     const badge_type = str(body.badge_type, 50);
-    if (!badge_type || !BADGE_TYPES.includes(badge_type)) {
+    if (!badge_type || !(BADGE_TYPES as readonly string[]).includes(badge_type)) {
       return badRequest(`badge_type must be one of: ${BADGE_TYPES.join(", ")}`);
     }
 

@@ -10,9 +10,11 @@ export async function GET() {
 
     const participation = await dbAll(
       `SELECT b.id as board_id, b.title, b.honoree_name, b.type, b.values_tag, b.expires_at,
-          COUNT(p.id) as post_count
+          COUNT(DISTINCT p.id) as post_count,
+          COUNT(DISTINCT v.id) as view_count
          FROM boards b
          LEFT JOIN board_posts p ON p.board_id = b.id
+         LEFT JOIN celebration_views v ON v.board_id = b.id
          WHERE b.status = 'open' OR b.status = 'active'
          GROUP BY b.id
          ORDER BY b.expires_at ASC`,
@@ -52,6 +54,7 @@ export async function GET() {
     const totalActive = activeBoards.length;
     const totalPosts = participation.reduce((s: number, b: any) => s + (b.post_count || 0), 0);
     const avgPostsPerBoard = totalActive > 0 ? Math.round((totalPosts / totalActive) * 10) / 10 : 0;
+    const totalViews = participation.reduce((s: number, b: any) => s + (b.view_count || 0), 0);
 
     return NextResponse.json({
       active_boards: activeBoards,
@@ -60,6 +63,7 @@ export async function GET() {
       values_breakdown: valuesBreakdown,
       total_active: totalActive,
       avg_posts_per_board: avgPostsPerBoard,
+      total_views: totalViews,
     });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });

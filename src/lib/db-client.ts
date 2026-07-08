@@ -156,11 +156,19 @@ CREATE TABLE IF NOT EXISTS badges (
   reason TEXT,
   awarded_at TEXT DEFAULT ${NOW_PG}
 );
+CREATE TABLE IF NOT EXISTS celebration_views (
+  id TEXT PRIMARY KEY,
+  board_id TEXT NOT NULL,
+  session_id TEXT NOT NULL,
+  viewed_at TEXT DEFAULT ${NOW_PG},
+  UNIQUE (board_id, session_id)
+);
 CREATE INDEX IF NOT EXISTS idx_posts_board ON board_posts(board_id);
 CREATE INDEX IF NOT EXISTS idx_boards_token ON boards(share_token);
 CREATE INDEX IF NOT EXISTS idx_boards_status ON boards(status);
 CREATE INDEX IF NOT EXISTS idx_badges_board ON badges(board_id);
 CREATE INDEX IF NOT EXISTS idx_badges_email ON badges(person_email);
+CREATE INDEX IF NOT EXISTS idx_celebration_views_board ON celebration_views(board_id);
 `;
 
 const SCHEMA_SQLITE = `
@@ -224,11 +232,19 @@ CREATE TABLE IF NOT EXISTS badges (
   reason TEXT,
   awarded_at TEXT DEFAULT (datetime('now'))
 );
+CREATE TABLE IF NOT EXISTS celebration_views (
+  id TEXT PRIMARY KEY,
+  board_id TEXT NOT NULL,
+  session_id TEXT NOT NULL,
+  viewed_at TEXT DEFAULT (datetime('now')),
+  UNIQUE (board_id, session_id)
+);
 CREATE INDEX IF NOT EXISTS idx_posts_board ON board_posts(board_id);
 CREATE INDEX IF NOT EXISTS idx_boards_token ON boards(share_token);
 CREATE INDEX IF NOT EXISTS idx_boards_status ON boards(status);
 CREATE INDEX IF NOT EXISTS idx_badges_board ON badges(board_id);
 CREATE INDEX IF NOT EXISTS idx_badges_email ON badges(person_email);
+CREATE INDEX IF NOT EXISTS idx_celebration_views_board ON celebration_views(board_id);
 `;
 
 const EXPIRES_AT = "2026-08-25";

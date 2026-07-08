@@ -71,6 +71,20 @@ const TYPES: MilestoneType[] = [
     desc: "a goal, achieved",
     tint: "#FFF8E8",
   },
+  {
+    key: "team_event", emoji: "🎊", label: "Team Event",
+    tag: "Win Together",
+    cheer: "better together · Win Together",
+    desc: "an offsite, a launch, a win worth marking",
+    tint: "#EFF6FF",
+  },
+  {
+    key: "other", emoji: "💛", label: "Other",
+    tag: "Win Together",
+    cheer: "every moment worth celebrating",
+    desc: "anything else worth a cheer",
+    tint: "#FAFAF5",
+  },
 ];
 
 const TITLE_TEMPLATES: Record<string, (name: string) => string> = {
@@ -82,6 +96,8 @@ const TITLE_TEMPLATES: Record<string, (name: string) => string> = {
   new_baby: (n) => `Welcome Baby, ${n}! 👶`,
   get_well: (n) => `Wishing You a Speedy Recovery, ${n}! 💐`,
   personal_achievement: (n) => `Cheers to You, ${n}! 🌟`,
+  team_event: (n) => `Cheers to the Team, ${n}! 🎊`,
+  other: (n) => `Cheers to You, ${n}! 💛`,
 };
 
 const APPLIED_VALUES = [
