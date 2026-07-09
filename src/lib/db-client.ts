@@ -14,10 +14,17 @@
 //      which tunnels to localhost:5432 and handles auth itself.
 //   4. NODE_ENV=production and none of the above → throw. Refusing to fall
 //      back to ephemeral storage in production is the whole point.
-//   5. Otherwise (local dev, nothing configured) → ephemeral local SQLite
-//      file for zero-config quick start. Local-dev-only; unreachable in prod.
+//   5. Otherwise (local dev, nothing configured) → local SQLite file for
+//      zero-config quick start. Local-dev-only; unreachable in prod. This
+//      file lives in the repo (`.local/cheers-dev.db`, gitignored), NOT
+//      `/tmp` — it accumulates real board data across dev sessions (and
+//      across agents working in this repo), so it must not be treated as
+//      scratch space. Do not `rm` it, and do not point it at `/tmp` again:
+//      see "Read before touching persistence or deploying" in README.md.
 import { createClient as createLibsqlClient, type InValue } from "@libsql/client";
 import { Pool, type PoolClient, types as pgTypes } from "pg";
+import { mkdirSync } from "fs";
+import { join } from "path";
 
 // pg returns COUNT(*)/bigint columns as strings by default (avoids precision
 // loss above Number.MAX_SAFE_INTEGER). SQLite/libsql returned these as native
@@ -395,11 +402,21 @@ async function createBackend(): Promise<Backend> {
     );
   }
 
+  // Deliberately NOT /tmp: that's OS-managed scratch space that gets treated
+  // (by humans, agents, and the OS itself) as safe to wipe, which has
+  // actually happened — see "Local Development" in README.md. Living inside
+  // the repo (and gitignored via the `*.db` rule) makes clear this file
+  // holds real accumulated local board data, not disposable temp state.
+  const localDbDir = join(process.cwd(), ".local");
+  mkdirSync(localDbDir, { recursive: true });
+  const localDbPath = join(localDbDir, "cheers-dev.db");
+
   console.warn(
-    "[db] No database configured — using an ephemeral local SQLite file at /tmp/cheers-dev.db. " +
-    "This is fine for local dev only; it must never happen in production."
+    `[db] No database configured — using a local SQLite file at ${localDbPath}. ` +
+    "This is fine for local dev only (never in production), and persists across restarts " +
+    "— see README.md before deleting it."
   );
-  const client = createLibsqlClient({ url: "file:/tmp/cheers-dev.db" });
+  const client = createLibsqlClient({ url: `file:${localDbPath}` });
   return makeSqliteBackend(client);
 }
 
