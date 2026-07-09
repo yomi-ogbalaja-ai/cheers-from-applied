@@ -40,6 +40,7 @@ Cheers from Applied lets teams create rich celebration boards for colleagues —
   - **Receiver view** — the final celebration experience, with confetti
 - **Public share links** — each board gets a unique URL; no login required to post or view
 - **Email notifications** — notify the recipient when their board is ready (requires SMTP config)
+- **View tracking** — unique (anonymous, deduped-by-browser) views per board are recorded and shown in the Manager Dashboard (`/dashboard`) as a "Total Views" stat and a per-board "Views" column
 - **Seed data** — a sample board auto-loads on first run so you can explore immediately
 
 ---
@@ -66,9 +67,11 @@ npm run dev
 
 App runs at **http://localhost:3001**.
 
-With no database env vars set, data is written to an ephemeral `/tmp/cheers-dev.db` SQLite file — fine for local dev, **not fine in production** (see the warning above; production throws instead of using this path). Seed data loads automatically on first run — no manual step needed.
+With no database env vars set, data is written to a local SQLite file at **`.local/cheers-dev.db`** (created automatically, gitignored) — fine for local dev, **not fine in production** (see the warning above; production throws instead of using this path). Seed data loads automatically on first run — no manual step needed.
 
-To develop against the real production database instead (e.g. to test a schema change safely — it's isolated per-app, see the persistence warning above):
+**This file is not scratch space — don't delete it casually.** It persists across restarts by design, so boards you (or an agent working in this repo) create locally accumulate there over time. Deleting it silently wipes all of that with no way to recover it (this has actually happened — an agent ran `rm -f` on the old `/tmp`-based version of this file during "cleanup" after a test, on the assumption that anything in `/tmp` or labeled "ephemeral" is disposable; it wasn't, and real local test boards were lost). If you need a clean slate, ask first, and prefer moving the file aside (`mv .local/cheers-dev.db .local/cheers-dev.db.bak`) over deleting it outright. It intentionally no longer lives in `/tmp` for this reason.
+
+To develop against the real production database instead (e.g. to test a schema change safely — it's isolated per-app, see the persistence warning above — **note this is genuinely production data, not a separate dev instance; don't create test/throwaway boards through it**):
 
 ```bash
 apps-platform app connect-db cheers-from-applied   # in one terminal, leave running

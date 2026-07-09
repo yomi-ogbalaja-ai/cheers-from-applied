@@ -14,10 +14,17 @@
 //      which tunnels to localhost:5432 and handles auth itself.
 //   4. NODE_ENV=production and none of the above → throw. Refusing to fall
 //      back to ephemeral storage in production is the whole point.
-//   5. Otherwise (local dev, nothing configured) → ephemeral local SQLite
-//      file for zero-config quick start. Local-dev-only; unreachable in prod.
+//   5. Otherwise (local dev, nothing configured) → local SQLite file for
+//      zero-config quick start. Local-dev-only; unreachable in prod. This
+//      file lives in the repo (`.local/cheers-dev.db`, gitignored), NOT
+//      `/tmp` — it accumulates real board data across dev sessions (and
+//      across agents working in this repo), so it must not be treated as
+//      scratch space. Do not `rm` it, and do not point it at `/tmp` again:
+//      see "Read before touching persistence or deploying" in README.md.
 import { createClient as createLibsqlClient, type InValue } from "@libsql/client";
 import { Pool, type PoolClient, types as pgTypes } from "pg";
+import { mkdirSync } from "fs";
+import { join } from "path";
 
 // pg returns COUNT(*)/bigint columns as strings by default (avoids precision
 // loss above Number.MAX_SAFE_INTEGER). SQLite/libsql returned these as native
@@ -156,11 +163,19 @@ CREATE TABLE IF NOT EXISTS badges (
   reason TEXT,
   awarded_at TEXT DEFAULT ${NOW_PG}
 );
+CREATE TABLE IF NOT EXISTS celebration_views (
+  id TEXT PRIMARY KEY,
+  board_id TEXT NOT NULL,
+  session_id TEXT NOT NULL,
+  viewed_at TEXT DEFAULT ${NOW_PG},
+  UNIQUE (board_id, session_id)
+);
 CREATE INDEX IF NOT EXISTS idx_posts_board ON board_posts(board_id);
 CREATE INDEX IF NOT EXISTS idx_boards_token ON boards(share_token);
 CREATE INDEX IF NOT EXISTS idx_boards_status ON boards(status);
 CREATE INDEX IF NOT EXISTS idx_badges_board ON badges(board_id);
 CREATE INDEX IF NOT EXISTS idx_badges_email ON badges(person_email);
+CREATE INDEX IF NOT EXISTS idx_celebration_views_board ON celebration_views(board_id);
 `;
 
 const SCHEMA_SQLITE = `
@@ -224,11 +239,19 @@ CREATE TABLE IF NOT EXISTS badges (
   reason TEXT,
   awarded_at TEXT DEFAULT (datetime('now'))
 );
+CREATE TABLE IF NOT EXISTS celebration_views (
+  id TEXT PRIMARY KEY,
+  board_id TEXT NOT NULL,
+  session_id TEXT NOT NULL,
+  viewed_at TEXT DEFAULT (datetime('now')),
+  UNIQUE (board_id, session_id)
+);
 CREATE INDEX IF NOT EXISTS idx_posts_board ON board_posts(board_id);
 CREATE INDEX IF NOT EXISTS idx_boards_token ON boards(share_token);
 CREATE INDEX IF NOT EXISTS idx_boards_status ON boards(status);
 CREATE INDEX IF NOT EXISTS idx_badges_board ON badges(board_id);
 CREATE INDEX IF NOT EXISTS idx_badges_email ON badges(person_email);
+CREATE INDEX IF NOT EXISTS idx_celebration_views_board ON celebration_views(board_id);
 `;
 
 const EXPIRES_AT = "2026-08-25";
@@ -239,16 +262,16 @@ async function seed(backend: Backend) {
   const n = new Date().toISOString().replace("T", " ").slice(0, 19);
 
   const boards = [
-    ["board-alex-bday", "Alex Chen", "alex.chen@applied.co", "#6366f1", "birthday",
-      "Happy Birthday, Alex!", "Alex has been an absolute rockstar this year.", "Win Together",
+    ["board-alex-bday", "John Doe", "john.doe@applied.co", "#6366f1", "birthday",
+      "Happy Birthday, John!", "John has been an absolute rockstar this year.", "Win Together",
       0, 1, "share-alex-bday-2026", 1, "jordan.smith@applied.co", "active",
       "jordan.smith@applied.co", "Jordan Smith", EXPIRES_AT, n],
-    ["board-sam-promo", "Sam Lee", "sam.lee@applied.co", "#8b5cf6", "promotion",
-      "Congrats on the promo, Sam!", "Sam crushed it this cycle — from IC3 to IC4.", "Move with Urgency",
+    ["board-sam-promo", "John Doe", "john.doe@applied.co", "#8b5cf6", "promotion",
+      "Congrats on the promo, John!", "John crushed it this cycle — from IC3 to IC4.", "Move with Urgency",
       0, 1, "share-sam-promo-2026", 0, null, "active",
       "yomi.ogbalaja@applied.co", "Yomi Ogbalaja", EXPIRES_AT, n],
-    ["board-chris-welcome", "Chris Wong", "chris.wong@applied.co", "#10b981", "new_hire",
-      "Welcome to Applied, Chris!", "Chris joins us as ML Engineer on the Perception team!", "Win Together",
+    ["board-chris-welcome", "John Doe", "john.doe@applied.co", "#10b981", "new_hire",
+      "Welcome to Applied, John!", "John joins us as ML Engineer on the Perception team!", "Win Together",
       0, 1, "share-chris-welcome-2026", 1, "jordan.smith@applied.co", "active",
       "jordan.smith@applied.co", "Jordan Smith", EXPIRES_AT, n],
   ];
@@ -266,29 +289,29 @@ async function seed(backend: Backend) {
 
   const posts = [
     ["post-1","board-alex-bday","Jordan Smith","jordan.smith@applied.co","#3b82f6",1,
-      "Alex — you've been an incredible force on the team this past year. Happy Birthday!",null,null,null,"🎉","{}",null,n],
-    ["post-2","board-alex-bday","Maya Patel","maya.patel@applied.co","#ec4899",0,
+      "John — you've been an incredible force on the team this past year. Happy Birthday!",null,null,null,"🎉","{}",null,n],
+    ["post-2","board-alex-bday","Gabriel Acosta","gabriel.acosta@applied.co","#ec4899",0,
       "Happy birthday to my favourite backend genius! Here's to another year of you making all our systems work.",
       "https://media.giphy.com/media/g5R9dok94mrIvplmZd/giphy.gif","Birthday Confetti",null,null,"{}",null,n],
     ["post-3","board-alex-bday","Sam Lee","sam.lee@applied.co","#8b5cf6",0,
-      "Happy birthday Alex!! Can't believe it's already been a year since you joined.",null,null,null,"❤️","{}",null,n],
+      "Happy birthday John!! Can't believe it's already been a year since you joined.",null,null,null,"❤️","{}",null,n],
     ["post-4","board-alex-bday","Chris Wong","chris.wong@applied.co","#10b981",0,
-      "Still the new guy here but already learned so much from you Alex — thank you and happy birthday!",
+      "Still the new guy here but already learned so much from you John — thank you and happy birthday!",
       "https://media.giphy.com/media/artj92V8o75VPL7AeQ/giphy.gif",null,null,null,"{}",null,n],
     ["post-5","board-alex-bday","Yomi Ogbalaja","yomi.ogbalaja@applied.co","#f59e0b",0,
-      "Alex — the energy you bring to every room is infectious. Hope your day is incredible! Happy birthday!",
+      "John — the energy you bring to every room is infectious. Hope your day is incredible! Happy birthday!",
       null,null,null,"🔥","{}",null,n],
     ["post-6","board-sam-promo","Jordan Smith","jordan.smith@applied.co","#3b82f6",1,
-      "Sam — this promotion has been long overdue. IC4 and beyond!",null,null,null,"🎉","{}",null,n],
-    ["post-7","board-sam-promo","Maya Patel","maya.patel@applied.co","#ec4899",0,
-      "Sammmm!!! IC4!!! You absolutely earned this.",
+      "John — this promotion has been long overdue. IC4 and beyond!",null,null,null,"🎉","{}",null,n],
+    ["post-7","board-sam-promo","Gabriel Acosta","gabriel.acosta@applied.co","#ec4899",0,
+      "Johnnnn!!! IC4!!! You absolutely earned this.",
       "https://media.giphy.com/media/l0MYEqEzwMWFCg8rm/giphy.gif",null,null,null,"{}",null,n],
     ["post-8","board-sam-promo","Alex Chen","alex.chen@applied.co","#6366f1",0,
-      "Sam you've been such a great mentor to me. This is SO deserved. Congrats!!",null,null,null,"👏","{}",null,n],
+      "John you've been such a great mentor to me. This is SO deserved. Congrats!!",null,null,null,"👏","{}",null,n],
     ["post-9","board-chris-welcome","Jordan Smith","jordan.smith@applied.co","#3b82f6",1,
-      "Chris — so glad to have you on the Perception team! Welcome to Applied!",null,null,null,null,"{}",null,n],
-    ["post-10","board-chris-welcome","Maya Patel","maya.patel@applied.co","#ec4899",0,
-      "Welcome Chris! The design & ML teams are gonna do amazing things together!",
+      "John — so glad to have you on the Perception team! Welcome to Applied!",null,null,null,null,"{}",null,n],
+    ["post-10","board-chris-welcome","Gabriel Acosta","gabriel.acosta@applied.co","#ec4899",0,
+      "Welcome John! The design & ML teams are gonna do amazing things together!",
       "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExeXppYWR1NWc2cDJxMHN1bm50MXpvaHFqeDNoeXd6MXR2MXB2aXdxeSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/XDAY1NNG2VvobAp9o1/giphy.gif",
       null,null,null,"{}",null,n],
   ];
@@ -306,7 +329,7 @@ async function seed(backend: Backend) {
   const gifts = [
     ["gift-1","board-alex-bday","Jordan Smith","jordan.smith@applied.co","time_off_hours",8,
       "Take a long weekend on us — you've earned it!","pending",null,120,n],
-    ["gift-2","board-alex-bday","Maya Patel","maya.patel@applied.co","time_off_hours",4,
+    ["gift-2","board-alex-bday","Gabriel Acosta","gabriel.acosta@applied.co","time_off_hours",4,
       "A little extra rest for your birthday week!","approved",null,88,n],
   ];
   for (const g of gifts) {
@@ -320,10 +343,10 @@ async function seed(backend: Backend) {
   }
 
   const badges = [
-    ["alex.chen@applied.co","Alex Chen","birthday_star","board-alex-bday","Celebrated by 5 teammates!",n],
+    ["john.doe@applied.co","John Doe","birthday_star","board-alex-bday","Celebrated by 5 teammates!",n],
     ["jordan.smith@applied.co","Jordan Smith","cheer_champion","board-alex-bday","Kicked off 2 boards",n],
-    ["maya.patel@applied.co","Maya Patel","generous_soul","board-alex-bday","Gifted time off hours",n],
-    ["sam.lee@applied.co","Sam Lee","rising_star","board-sam-promo","Earned a well-deserved promotion!",n],
+    ["gabriel.acosta@applied.co","Gabriel Acosta","generous_soul","board-alex-bday","Gifted time off hours",n],
+    ["john.doe@applied.co","John Doe","rising_star","board-sam-promo","Earned a well-deserved promotion!",n],
     ["yomi.ogbalaja@applied.co","Yomi Ogbalaja","team_player","board-alex-bday","Showed up for 3 teammates",n],
   ];
   for (const b of badges) {
@@ -379,11 +402,33 @@ async function createBackend(): Promise<Backend> {
     );
   }
 
+  // The test suite (vitest sets process.env.VITEST) hits this same fallback
+  // branch and must NOT share a file with interactive `npm run dev` — it
+  // needs a throwaway DB that globalSetup.ts wipes before every run. Giving
+  // both the same file used to mean every `npm test` run permanently
+  // littered the durable dev DB with test fixtures (e.g. "React Test Board"
+  // x3) with no cleanup. Keep the test DB in /tmp (it's meant to be wiped)
+  // and keep dev's DB out of /tmp (it's not) — see src/test/globalSetup.ts.
+  if (process.env.VITEST) {
+    const client = createLibsqlClient({ url: "file:/tmp/cheers-test.db" });
+    return makeSqliteBackend(client);
+  }
+
+  // Deliberately NOT /tmp: that's OS-managed scratch space that gets treated
+  // (by humans, agents, and the OS itself) as safe to wipe, which has
+  // actually happened — see "Local Development" in README.md. Living inside
+  // the repo (and gitignored via the `*.db` rule) makes clear this file
+  // holds real accumulated local board data, not disposable temp state.
+  const localDbDir = join(process.cwd(), ".local");
+  mkdirSync(localDbDir, { recursive: true });
+  const localDbPath = join(localDbDir, "cheers-dev.db");
+
   console.warn(
-    "[db] No database configured — using an ephemeral local SQLite file at /tmp/cheers-dev.db. " +
-    "This is fine for local dev only; it must never happen in production."
+    `[db] No database configured — using a local SQLite file at ${localDbPath}. ` +
+    "This is fine for local dev only (never in production), and persists across restarts " +
+    "— see README.md before deleting it."
   );
-  const client = createLibsqlClient({ url: "file:/tmp/cheers-dev.db" });
+  const client = createLibsqlClient({ url: `file:${localDbPath}` });
   return makeSqliteBackend(client);
 }
 

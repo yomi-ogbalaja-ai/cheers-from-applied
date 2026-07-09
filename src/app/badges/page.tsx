@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { BADGE_META } from "@/lib/badges";
 
 interface BadgeItem {
   id: number;
@@ -15,16 +16,6 @@ interface PersonGroup {
   person_email: string;
   badges: BadgeItem[];
 }
-
-const BADGE_META: Record<string, { icon: string; label: string }> = {
-  kudos:     { icon: "👏", label: "Kudos" },
-  star:      { icon: "⭐", label: "Star" },
-  heart:     { icon: "❤️", label: "Heart" },
-  fire:      { icon: "🔥", label: "Fire" },
-  rocket:    { icon: "🚀", label: "Rocket" },
-  lightbulb: { icon: "💡", label: "Lightbulb" },
-  handshake: { icon: "🤝", label: "Handshake" },
-};
 
 const AVATAR_COLORS = [
   "#1557FF", "#0A3FD4", "#2E74FF", "#0D47C9",

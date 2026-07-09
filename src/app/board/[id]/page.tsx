@@ -2,6 +2,8 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
 import confetti from "canvas-confetti";
+import { BADGE_TYPES, BADGE_META } from "@/lib/badges";
+import { getSessionId } from "@/lib/session-id";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 interface Board {
@@ -27,6 +29,7 @@ interface Badge {
 const TYPE_EMOJI: Record<string, string> = {
   birthday: "🎂", wedding: "💍", new_baby: "👶", work_anniversary: "🥂",
   promotion: "🚀", get_well: "💐", new_hire: "👋", personal_achievement: "🌟",
+  team_event: "🎊", other: "💛",
 };
 
 
@@ -95,16 +98,6 @@ const AUTO_MESSAGES: Record<string, { label: string; text: string }[]> = {
     { label: "Brief", text: "You did it! So happy for you. Well deserved." },
     { label: "Warm", text: "It takes grit to reach this level. So proud of everything you've accomplished." },
   ],
-};
-
-const BADGE_META: Record<string, { icon: string; color: string; label: string }> = {
-  team_player:      { icon: "🤝", color: "#6366f1", label: "Team Player" },
-  hype_person:      { icon: "📣", color: "#ec4899", label: "Hype Person" },
-  culture_add:      { icon: "✨", color: "#f59e0b", label: "Culture Add" },
-  early_bird:       { icon: "🌅", color: "#10b981", label: "Early Bird" },
-  creative_spark:   { icon: "💡", color: "#8b5cf6", label: "Creative Spark" },
-  people_first:     { icon: "💛", color: "#f97316", label: "People First" },
-  milestone_maker:  { icon: "🏆", color: "#0ea5e9", label: "Milestone Maker" },
 };
 
 const REACTIONS = ["❤️","🎉","🙌","😂","🔥","😍","👏","💯","🥳","✨"];
@@ -417,12 +410,6 @@ function PostTile({ post, onUpdate }: { post: Post; onUpdate?: () => Promise<voi
           <p className="text-sm font-semibold truncate" style={{ color: "var(--text)" }}>{post.author_name}</p>
           <p className="text-xs" style={{ color: "var(--muted)" }}>{timeAgo(post.created_at)}</p>
         </div>
-        {post.values_tag && (
-          <span className="text-[10px] px-1.5 py-0.5 rounded-full flex-shrink-0"
-            style={{ background: "var(--accent-light)", color: "var(--muted)", border: "1px solid var(--border-light)" }}>
-            {post.values_tag}
-          </span>
-        )}
         {editBtn}
       </div>
       {editing ? editBox : (
@@ -452,12 +439,6 @@ function CheerSnippet({ post, onUpdate }: { post: Post; onUpdate?: () => Promise
           <p className="text-sm font-semibold truncate" style={{ color: "var(--text)" }}>{post.author_name}</p>
           <p className="text-xs" style={{ color: "var(--muted)" }}>{timeAgo(post.created_at)}</p>
         </div>
-        {post.values_tag && (
-          <span className="text-[10px] px-1.5 py-0.5 rounded-full flex-shrink-0"
-            style={{ background: "var(--accent-light)", color: "var(--muted)", border: "1px solid var(--border-light)" }}>
-            {post.values_tag}
-          </span>
-        )}
         {post.reaction && <span className="text-base flex-shrink-0">{post.reaction}</span>}
         {onUpdate && !editing && (
           confirmDelete ? (
@@ -607,6 +588,14 @@ export default function BoardPage() {
     fetchBoardData();
   }, [fetchBoardData]);
 
+  useEffect(() => {
+    if (!id) return;
+    fetch(`/api/celebrations/${id}/view`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ session_id: getSessionId() }),
+    }).catch(() => { /* view tracking is best-effort */ });
+  }, [id]);
 
   useEffect(() => {
     if (!loading && !confettiFired.current) {
@@ -1499,13 +1488,9 @@ export default function BoardPage() {
                   onChange={e => setBadgeForm(f => ({ ...f, badge_type: e.target.value }))}
                   className="w-full rounded-xl px-4 py-2.5 text-sm focus:outline-none"
                   style={{ border: "1px solid var(--border)", background: "var(--bg)", color: "var(--text)" }}>
-                  <option value="team_player">🤝 Team Player</option>
-                  <option value="cheer_champion">📣 Cheer Champion</option>
-                  <option value="birthday_star">🎂 Birthday Star</option>
-                  <option value="rising_star">⭐ Rising Star</option>
-                  <option value="generous_soul">💛 Generous Soul</option>
-                  <option value="milestone_maker">🏆 Milestone Maker</option>
-                  <option value="culture_carrier">🌟 Culture Carrier</option>
+                  {BADGE_TYPES.map(t => (
+                    <option key={t} value={t}>{BADGE_META[t].icon} {BADGE_META[t].label}</option>
+                  ))}
                 </select>
               </div>
               <div>
