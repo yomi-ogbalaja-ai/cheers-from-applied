@@ -82,7 +82,7 @@ export async function POST(req: NextRequest) {
     // Compute expires_at from close_days if not explicitly provided.
     let expires_at = optStr(body.expires_at, 50);
     if (!expires_at) {
-      let days = 30;
+      let days = 7;
       if (body.close_days !== undefined && body.close_days !== null) {
         const n = Number(body.close_days);
         if (!Number.isFinite(n) || n < 1 || n > 365) {

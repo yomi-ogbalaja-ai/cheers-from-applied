@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import confetti from "canvas-confetti";
 import { getSessionId } from "@/lib/session-id";
+import { downloadBoardAsImage, downloadBoardAsPdf } from "@/lib/export-board";
 
 interface Board {
   id: string; title: string; honoree_name: string; honoree_avatar_color: string;
@@ -43,7 +44,23 @@ export default function SharedBoardPage() {
   const [board, setBoard] = useState<Board | null>(null);
   const [posts, setPosts] = useState<Post[]>([]);
   const [notFound, setNotFound] = useState(false);
+  const [saving, setSaving] = useState<"image" | "pdf" | null>(null);
   const confettiFired = useRef(false);
+  const captureRef = useRef<HTMLDivElement>(null);
+
+  async function handleSave(kind: "image" | "pdf") {
+    if (!captureRef.current || saving) return;
+    setSaving(kind);
+    try {
+      const filename = `cheers-${board?.honoree_name.replace(/\s+/g, "-").toLowerCase() ?? "board"}`;
+      if (kind === "image") await downloadBoardAsImage(captureRef.current, filename);
+      else await downloadBoardAsPdf(captureRef.current, filename);
+    } catch {
+      alert("Couldn't save the board. Please try again.");
+    } finally {
+      setSaving(null);
+    }
+  }
 
   useEffect(() => {
     if (!token) return;
@@ -97,13 +114,26 @@ export default function SharedBoardPage() {
   return (
     <div className="min-h-screen flex flex-col" style={{ background: "var(--bg)" }}>
       {/* Minimal header */}
-      <header className="sticky top-0 z-20 px-6 py-3 flex items-center justify-between"
+      <header className="sticky top-0 z-20 px-6 py-3 flex items-center justify-between gap-3"
         style={{ background: "var(--card)", borderBottom: "1px solid var(--border)" }}>
         <span className="font-bold text-base" style={{ color: "var(--text)" }}>🎉 Cheers from Applied</span>
-        <span className="text-xs rounded-full px-3 py-1"
-          style={{ color: "var(--muted)", background: "var(--accent-light)" }}>Shared board</span>
+        <div className="flex items-center gap-2">
+          <button onClick={() => handleSave("image")} disabled={saving !== null}
+            className="text-xs font-medium rounded-full px-3 py-1.5 disabled:opacity-50 transition-opacity"
+            style={{ color: "var(--accent)", background: "var(--accent-light)" }}>
+            {saving === "image" ? "Saving…" : "🖼️ Save image"}
+          </button>
+          <button onClick={() => handleSave("pdf")} disabled={saving !== null}
+            className="text-xs font-medium rounded-full px-3 py-1.5 disabled:opacity-50 transition-opacity"
+            style={{ color: "var(--accent)", background: "var(--accent-light)" }}>
+            {saving === "pdf" ? "Saving…" : "📄 Save PDF"}
+          </button>
+          <span className="text-xs rounded-full px-3 py-1 hidden sm:inline-block"
+            style={{ color: "var(--muted)", background: "var(--accent-light)" }}>Shared board</span>
+        </div>
       </header>
 
+      <div ref={captureRef}>
       {/* Hero banner */}
       <div className="w-full px-6 py-12 flex flex-col items-center gap-4 text-white text-center"
         style={{ background: `linear-gradient(135deg, ${board.honoree_avatar_color}cc 0%, ${board.honoree_avatar_color} 100%)` }}>
@@ -187,6 +217,7 @@ export default function SharedBoardPage() {
           ))}
         </div>
       </main>
+      </div>
 
       <footer className="py-6 text-center flex flex-col items-center gap-1"
         style={{ background: "var(--card)", borderTop: "1px solid var(--border)" }}>

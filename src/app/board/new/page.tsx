@@ -157,7 +157,7 @@ export default function NewBoardPage() {
     creatorName: "",
     creatorEmail: "",
     privacy: "public",
-    closeDays: 30,
+    closeDays: 7,
     valuesTag: "",
     coverColor: "#1558D6",
   });
@@ -254,7 +254,7 @@ export default function NewBoardPage() {
     setForm({
       honoreeName: "", honoreeEmail: "", title: "", description: "",
       milestoneDate: "", creatorName: "", creatorEmail: "",
-      privacy: "public", closeDays: 30, valuesTag: "", coverColor: "#1558D6",
+      privacy: "public", closeDays: 7, valuesTag: "", coverColor: "#1558D6",
     });
   }
 
