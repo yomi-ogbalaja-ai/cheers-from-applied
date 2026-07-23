@@ -1,5 +1,9 @@
 name = "cheers-from-applied"
 enable_postgres = true
+allowed_usergroups = [
+  "okta-team-applied-fte@applied.co",
+  "kennedy.bahr@ext.applied.co",
+]
 
 [metadata]
 owner = "yomi.ogbalaja@applied.co"
